@@ -132,7 +132,7 @@ namespace JTranslator
             }
         }
 
-        private async void CheckGitHubNewerVersion()
+        private async void CheckGitHubNewerVersion(bool forceShowMessage = false)
         {
             //Get all releases from GitHub
             const string uri = "https://api.github.com/repos/jackypham94/JTranslator/releases";
@@ -197,7 +197,11 @@ namespace JTranslator
                     else
                     {
                         //This local Version and the Version on GitHub are equal.
-                        //Do nothing
+                        if (forceShowMessage)
+                        {
+                            MessageBox.Show(new Form { TopMost = true }, "JTranslator is up to date.", @"JTranslator");
+                        }
+                        
                     }
                 }
             }, TaskScheduler.FromCurrentSynchronizationContext());
@@ -243,7 +247,7 @@ namespace JTranslator
             menu.MenuItems.Add("Check for update", (s, e) =>
             {
                 this.Topmost = true;
-                CheckGitHubNewerVersion();
+                CheckGitHubNewerVersion(true);
             });
             menu.MenuItems.Add("-");
             menu.MenuItems.Add("Exit", (s, e) => { CloseButton_Click(null, null); });

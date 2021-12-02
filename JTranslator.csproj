@@ -6,7 +6,7 @@
 		<Nullable>enable</Nullable>
 		<UseWPF>true</UseWPF>
 		<NeutralLanguage>vi-VN</NeutralLanguage>
-		<AssemblyVersion>4.1.0.0</AssemblyVersion>
+		<AssemblyVersion>4.2.0.0</AssemblyVersion>
 		<Authors>Jacky</Authors>
 		<StartupObject>JTranslator.App</StartupObject>
 		<Description>Translator was developed with ❤ by Jacky.</Description>
