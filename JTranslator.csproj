@@ -1,0 +1,70 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net48</TargetFramework>
+		<Nullable>enable</Nullable>
+		<UseWPF>true</UseWPF>
+		<NeutralLanguage>vi-VN</NeutralLanguage>
+		<AssemblyVersion>4.0.0.0</AssemblyVersion>
+		<Authors>Jacky</Authors>
+		<StartupObject>JTranslator.App</StartupObject>
+		<Description>Translator was developed with ❤ by Jacky.</Description>
+		<Copyright>Copyright ©  2019-2021 Jacky</Copyright>
+		<PackageIcon>translate.ico</PackageIcon>
+		<PlatformTarget>x64</PlatformTarget>
+		<LangVersion>preview</LangVersion>
+		<Platforms>AnyCPU;x64</Platforms>
+		<DebugType>full</DebugType>
+		<SignAssembly>True</SignAssembly>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+		<Optimize>True</Optimize>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <None Remove="translate.ico" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Include="Properties\PublishProfiles\FolderProfile.pubxml.user" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Compile Update="Properties\Settings.Designer.cs">
+			<DesignTimeSharedInput>True</DesignTimeSharedInput>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Settings.settings</DependentUpon>
+		</Compile>
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Update="Properties\Settings.settings">
+			<Generator>SettingsSingleFileGenerator</Generator>
+			<LastGenOutput>Settings.Designer.cs</LastGenOutput>
+		</None>
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Costura.Fody" Version="5.7.0">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="MouseKeyHook" Version="5.6.0" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+		<PackageReference Include="protobuf-net" Version="3.0.101" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="System.Windows.Forms" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Resource Include="translate.ico">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
+	</ItemGroup>
+</Project>
