@@ -1,0 +1,2 @@
+# JTranslator
+Japanese Translator
