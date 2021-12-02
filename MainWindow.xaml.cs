@@ -37,6 +37,7 @@ using Task = System.Threading.Tasks.Task;
 using Timer = System.Windows.Forms.Timer;
 using MouseEventHandler = System.Windows.Forms.MouseEventHandler;
 using System.Runtime.InteropServices;
+using Newtonsoft.Json.Linq;
 
 namespace JTranslator
 {
@@ -75,10 +76,14 @@ namespace JTranslator
         private const int GWL_EX_STYLE = -20;
         private const int WS_EX_APPWINDOW = 0x00040000, WS_EX_TOOLWINDOW = 0x00000080;
 
+        private const string USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 12_0_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36";
+
         public MainWindow()
         {
             InitializeComponent();
             System.Windows.Forms.Application.EnableVisualStyles();
+            CheckGitHubNewerVersion();
+
             InitNotifyicon();
             //Console.OutputEncoding = Encoding.UTF8;
             _notify = new NotifyChanged();
@@ -127,6 +132,79 @@ namespace JTranslator
             }
         }
 
+        private async void CheckGitHubNewerVersion()
+        {
+            //Get all releases from GitHub
+            const string uri = "https://api.github.com/repos/jackypham94/JTranslator/releases";
+            var request = (HttpWebRequest)WebRequest.Create(uri);
+            request.Method = "GET";
+            request.ContentLength = 0;
+            request.ContentType = "application/json";
+            request.UserAgent = USER_AGENT;
+            var git = new Git();
+            void Action()
+            {
+                try
+                {
+                    var response = (HttpWebResponse)request.GetResponse();
+                    if (response.StatusCode != HttpStatusCode.OK)
+                    {
+                        var message = $"Request failed. Received HTTP {response.StatusCode}";
+                        throw new ApplicationException(message);
+                    }
+
+                    var responseStream = response.GetResponseStream();
+                    if (responseStream == null) return;
+                    using (var reader = new StreamReader(responseStream))
+                    {
+                        var jsonString = reader.ReadToEnd();
+                        var gits = new List<Git>();
+                        gits = JsonConvert.DeserializeObject<List<Git>>(jsonString);
+                        //var data = JObject.Parse(jsonString);
+                        git = gits.First();
+                    }
+                }
+                catch (WebException e)
+                {
+                    // Do nothing
+                }
+            }
+
+            await Task.Run(Action).ContinueWith(x =>
+            {
+                if (!string.IsNullOrEmpty(git.tag_name))
+                {
+                    //Assembly.GetExecutingAssembly().GetName().Version;
+                    ////Compare the Versions
+                    ////Source: https://stackoverflow.com/questions/7568147/compare-version-numbers-without-using-split-function
+                    Version currentVersion = new Version(Assembly.GetExecutingAssembly().GetName().Version.ToString());
+                    Version gitVersion = new Version(git.tag_name);
+                    int versionComparison = currentVersion.CompareTo(gitVersion);
+                    if (versionComparison < 0)
+                    {
+                        //The version on GitHub is more up to date than this local release.
+                        var result = MessageBox.Show(new Form { TopMost = true }, "The version on GitHub is more up to date than this local release.\n" +
+                            "Do you want to download the new version now?\n\n" +
+                            $"Local version: {currentVersion.ToString()}\n" +
+                            $"New version: {gitVersion.ToString()}", @"JTranslator", MessageBoxButtons.YesNo);
+                        if (result == System.Windows.Forms.DialogResult.Yes) System.Diagnostics.Process.Start(git.assets.First().browser_download_url);
+                    }
+                    else if (versionComparison > 0)
+                    {
+                        //This local version is greater than the release version on GitHub.
+                        //Do nothing
+                    }
+                    else
+                    {
+                        //This local Version and the Version on GitHub are equal.
+                        //Do nothing
+                    }
+                }
+            }, TaskScheduler.FromCurrentSynchronizationContext());
+
+            
+        }
+
         /// <summary>Brings main window to foreground.</summary>
         public void BringToForeground()
         {
@@ -162,10 +240,16 @@ namespace JTranslator
                 LanguageButton_Click(null, null);
             });
             menu.MenuItems.Add("-");
+            menu.MenuItems.Add("Check for update", (s, e) =>
+            {
+                this.Topmost = true;
+                CheckGitHubNewerVersion();
+            });
+            menu.MenuItems.Add("-");
             menu.MenuItems.Add("Exit", (s, e) => { CloseButton_Click(null, null); });
             NotifyIcon notifyIcon = new NotifyIcon(); // Declaration 
             //notifyIcon.BalloonTipText = "Hello, NotifyIcon!"; // Text of BalloonTip 
-            notifyIcon.Text = "Translator"; // ToolTip of NotifyIcon 
+            notifyIcon.Text = "JTranslator"; // ToolTip of NotifyIcon 
             notifyIcon.Icon = Properties.Resources.translate;
             //notifyIcon.Icon = new Icon(Application.GetResourceStream(new Uri("/translate.ico", UriKind.Relative))?.Stream ?? throw new InvalidOperationException()); // Shown Icon 
             notifyIcon.Visible = true;
@@ -201,7 +285,7 @@ namespace JTranslator
         {
             Dispatcher?.Invoke(DispatcherPriority.Render, new Action(() =>
             {
-                using (var file = File.Open(DataFileName, FileMode.Append, FileAccess.Write))
+                using (var file = File.Open(DataFileName, System.IO.FileMode.Append, FileAccess.Write))
                 {
                     Serializer.Serialize(file, result);
                 }
@@ -471,10 +555,7 @@ namespace JTranslator
             var uri =
                 $"https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&dt=bd&dj=1&dt=ex&dt=ld&dt=md&dt=qca&dt=rw&dt=rm&dt=ss&dt=at&sl={@from}&tl={to}&q=";
             var request = (HttpWebRequest)WebRequest.Create(uri + Uri.EscapeDataString(sourceText));
-            //var request = (HttpWebRequest)WebRequest.Create(uri);
-            //request.Headers.Set("user-agent", "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
-            request.UserAgent =
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 12_0_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36";
+            request.UserAgent = USER_AGENT;
             request.Method = "GET";
             request.ContentLength = 0;
             request.ContentType = "application/json";
@@ -981,7 +1062,7 @@ namespace JTranslator
         {
             Dispatcher?.Invoke((Action)(() =>
             {
-                var result = MessageBox.Show(new Form { TopMost = true }, "Bạn có chắc muốn đóng ứng dụng?\nAre you sure you'd like to close the app?", @"Translator", MessageBoxButtons.YesNo);
+                var result = MessageBox.Show(new Form { TopMost = true }, "Bạn có chắc muốn đóng ứng dụng?\nAre you sure you'd like to close the app?", @"JTranslator", MessageBoxButtons.YesNo);
                 if (result == System.Windows.Forms.DialogResult.Yes) Close();
             }));
 
