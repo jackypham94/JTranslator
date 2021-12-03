@@ -1,6 +1,10 @@
 # JTranslator
 Japanese Translator
 
+Developed with ☕ by Jacky
+
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/jackypham)
+
 ## CHỨC NĂNG CHÍNH:
 - Quét chọn text để dịch
 - Double click để dịch
