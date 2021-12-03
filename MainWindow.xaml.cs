@@ -185,9 +185,12 @@ namespace JTranslator
                         //The version on GitHub is more up to date than this local release.
                         var result = MessageBox.Show(new Form { TopMost = true }, "The version on GitHub is more up to date than this local release.\n" +
                             "Do you want to download the new version now?\n\n" +
-                            $"Local version: {currentVersion.ToString()}\n" +
-                            $"New version: {gitVersion.ToString()}", @"JTranslator", MessageBoxButtons.YesNo);
-                        if (result == System.Windows.Forms.DialogResult.Yes) System.Diagnostics.Process.Start(git.assets.First().browser_download_url);
+                            $"Local version: {currentVersion}\n" +
+                            $"New version: {gitVersion}", @"JTranslator", MessageBoxButtons.YesNo);
+                        if (result == System.Windows.Forms.DialogResult.Yes)
+                        {
+                            System.Diagnostics.Process.Start(git.assets.Count > 0 ? git.assets.First().browser_download_url : git.html_url);
+                        }
                     }
                     else if (versionComparison > 0)
                     {
