@@ -1,43 +1,39 @@
-﻿using System;
+﻿using Gma.System.MouseKeyHook;
+using JTranslator.Model;
+using JTranslator.Properties;
+using JTranslator.Util;
+using Microsoft.Win32;
+using Newtonsoft.Json;
+using ProtoBuf;
+using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
-using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Forms;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Threading;
-using Gma.System.MouseKeyHook;
-using System.Linq;
-using System.Net;
-using System.IO;
-using System.Reflection;
-using System.Text.RegularExpressions;
-using System.Windows.Controls;
-using Microsoft.Win32;
-using Newtonsoft.Json;
-using ProtoBuf;
-using JTranslator.Model;
-using JTranslator.Properties;
-using JTranslator.Util;
-using Application = System.Windows.Application;
-using TextBox = System.Windows.Forms.TextBox;
 using Brushes = System.Windows.Media.Brushes;
 using Button = System.Windows.Controls.Button;
 using Clipboard = System.Windows.Forms.Clipboard;
-using Cursors = System.Windows.Forms.Cursors;
 using MessageBox = System.Windows.Forms.MessageBox;
 using MouseEventArgs = System.Windows.Forms.MouseEventArgs;
+using MouseEventHandler = System.Windows.Forms.MouseEventHandler;
 using Point = System.Drawing.Point;
 using Task = System.Threading.Tasks.Task;
+using TextBox = System.Windows.Forms.TextBox;
 using Timer = System.Windows.Forms.Timer;
-using MouseEventHandler = System.Windows.Forms.MouseEventHandler;
-using System.Runtime.InteropServices;
-using Newtonsoft.Json.Linq;
 
 namespace JTranslator
 {
@@ -50,18 +46,18 @@ namespace JTranslator
         private readonly NotifyChanged _notify;
         private CancellationTokenSource _cancellationTokenSource;
         private IKeyboardMouseEvents _globalMouseHook;
-        private Google _google;
+        private Google? _google;
         private List<string> _histories;
         private List<Result> kanjiList;
-        private Mazii _mazii;
+        private Mazii? _mazii;
         private bool _isLoadingNew;
         private bool _isLoadingKanji = false;
-        private Guid _currentGuid;
+        //private Guid _currentGuid;
         private Timer _typingTimer;
         private IntPtr _hWndNextViewer;
         private volatile bool _isMouseDown;
-        private Point _mouseFirstPoint;
-        private Point _mouseSecondPoint;
+        private Point? _mouseFirstPoint;
+        private Point? _mouseSecondPoint;
         private System.Windows.Point _startPoint;
         private HwndSource _hWndSource;
         private readonly MouseEventHandler _doubleClickHandler;
@@ -121,14 +117,12 @@ namespace JTranslator
 
             // Check run at startup
             if (!_notify.IsRunOnStartUp) return;
-            using (var key = Registry.CurrentUser.OpenSubKey
-                ("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))
+            using var key = Registry.CurrentUser.OpenSubKey
+                ("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+            var appName = Assembly.GetExecutingAssembly().GetName().Name;
+            if (key?.GetValueNames().Contains(appName) ?? false)
             {
-                var appName = Assembly.GetExecutingAssembly().GetName().Name;
-                if (key?.GetValueNames().Contains(appName) ?? false)
-                {
-                    key?.SetValue(appName, "\"" + System.Environment.GetCommandLineArgs()[0] + "\"");
-                }
+                key?.SetValue(appName, "\"" + System.Environment.GetCommandLineArgs()[0] + "\"");
             }
         }
 
@@ -204,12 +198,12 @@ namespace JTranslator
                         {
                             MessageBox.Show(new Form { TopMost = true }, "JTranslator is up to date.", @"JTranslator");
                         }
-                        
+
                     }
                 }
             }, TaskScheduler.FromCurrentSynchronizationContext());
 
-            
+
         }
 
         /// <summary>Brings main window to foreground.</summary>
@@ -318,7 +312,7 @@ namespace JTranslator
             var paragraph = new Paragraph();
             paragraph.Inlines.Add(
                 new Run(
-                        "• Quét chọn để dịch.\n• Ctrl + Alt + T để tắt/mở tự động dịch.\n• Ctrl + Alt + W để xóa kết quả.\n• Ctrl + Alt + M để thu nhỏ/phóng to.\n• Ctrl + Alt + Q để thoát.")
+                        "• Quét chọn để dịch.\n• Ctrl + Alt + T để tắt/mở tự động dịch.\n• Ctrl + Alt + W để xóa kết quả.\n• Ctrl + Alt + M để thu nhỏ/phóng to.\n• CtrlCtrl + Alt + Q để thoát.")
                 { Foreground = Brushes.Teal });
             flowDocument.Blocks.Add(paragraph);
             MaziiRichTextBox.Document = flowDocument;
@@ -381,6 +375,7 @@ namespace JTranslator
             {
                 if (_cancellationTokenSource.Token.IsCancellationRequested)
                     return;
+                Thread.Sleep(200);
                 SendKeys.SendWait("^c");
                 SendKeys.Flush();
             });
@@ -528,7 +523,7 @@ namespace JTranslator
 
         private void SearchAsync(string text)
         {
-            _currentGuid = Guid.NewGuid();
+            //_currentGuid = Guid.NewGuid();
             if (text.Length <= 0) return;
             if (text.Equals(":init"))
             {
@@ -698,7 +693,7 @@ namespace JTranslator
                         foreach (var item in _mazii.data)
                         {
                             //create new link
-                            var link = new Hyperlink(new Run(item.word))
+                            Hyperlink link = new Hyperlink(new Run(item.word))
                             {
                                 IsEnabled = true,
                                 Foreground = Brushes.DarkGreen,
@@ -718,7 +713,7 @@ namespace JTranslator
                             paragraph.Inlines.Add(link);
                             //paragraph.Inlines.Add(new Run("\n" + item.word)
                             //{ Foreground = Brushes.DarkGreen, FontWeight = FontWeights.DemiBold });
-                            if (item.phonetic.Length > 0)
+                            if (item.phonetic?.Length > 0)
                                 paragraph.Inlines.Add(new Run(" (" + item.phonetic + ")")
                                 { Foreground = Brushes.OrangeRed });
                             paragraph.Inlines.Add(new Run(" ") { Foreground = Brushes.DarkSlateGray, FontSize = 11 });
@@ -785,11 +780,11 @@ namespace JTranslator
 
         private void InitLoadKanjiReading()
         {
-            if (_mazii.data == null || !_notify.IsLoadKanji || _isLoadingNew) return;
+            if (_mazii?.data == null || !_notify.IsLoadKanji || _isLoadingNew) return;
             var word = string.Concat(_mazii.data.Select(w => w.word));
             var onlyKanji = GetCharsInRange(word, 0x4E00, 0x9FBF).Select(c => c.ToString()).Distinct();
-            // Refresh if data is older than 1 month
-            var exists = kanjiList.Where(x => onlyKanji.Contains(x.kanji) && (DateTime.Now - x.date).Days < 30).Select(k => k.kanji);
+            // Refresh if data is older than 3 month
+            var exists = kanjiList.Where(x => onlyKanji.Contains(x.kanji) && (DateTime.Now - x.date).Days < 30 * 3).Select(k => k.kanji);
             word = string.Concat(onlyKanji.Except(exists));
             var words = SplitInParts(word, 5).ToList();
 
@@ -809,6 +804,7 @@ namespace JTranslator
                     request.Method = "GET";
                     request.ContentLength = 0;
                     request.ContentType = "application/json";
+                    request.UserAgent = USER_AGENT;
                     var kanji = new MaziiKanji();
                     try
                     {
@@ -1062,7 +1058,20 @@ namespace JTranslator
 
         private void OpacityButton_Click(object sender, RoutedEventArgs e)
         {
-            _notify.IsFaded = !_notify.IsFaded;
+            switch (_notify.IsFaded)
+            {
+                case 0:
+                    _notify.IsFaded = 1;
+                    break;
+                case 1:
+                    _notify.IsFaded = 2;
+                    break;
+                case 2:
+                    _notify.IsFaded = 0;
+                    break;
+                default:
+                    break;
+            }
         }
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)

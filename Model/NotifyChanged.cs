@@ -14,7 +14,7 @@ namespace JTranslator.Model
         private bool _isLoadKanji;
         private bool _isOpenedHistories;
         private bool _isOpenedSettings;
-        private bool _isFaded;
+        private int _isFaded;
         private bool _isJaVi;
         private bool _isRunOnStartUp;
         private bool _isDoubleClickOn;
@@ -69,7 +69,7 @@ namespace JTranslator.Model
             }
         }
 
-        public bool IsFaded
+        public int IsFaded
         {
             get => _isFaded;
             set

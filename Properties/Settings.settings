@@ -8,8 +8,8 @@
     <Setting Name="IsAutoTranslate" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">True</Value>
     </Setting>
-    <Setting Name="IsFaded" Type="System.Boolean" Scope="User">
-      <Value Profile="(Default)">False</Value>
+    <Setting Name="IsFaded" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">0</Value>
     </Setting>
     <Setting Name="Histories" Type="System.Collections.Specialized.StringCollection" Scope="User">
       <Value Profile="(Default)" />

@@ -103,8 +103,14 @@
         <Style TargetType="Window">
             <Setter Property="Opacity" Value="0.8" />
             <Style.Triggers>
-                <DataTrigger Binding="{Binding IsFaded}" Value="True">
+                <DataTrigger Binding="{Binding IsFaded}" Value="0">
                     <Setter Property="Opacity" Value="0.4" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsFaded}" Value="1">
+                    <Setter Property="Opacity" Value="0.8" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsFaded}" Value="2">
+                    <Setter Property="Opacity" Value="1" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -592,17 +598,27 @@
                                     <Setter Property="Template">
                                         <Setter.Value>
                                             <ControlTemplate TargetType="Button">
-                                                <Border CornerRadius="4" Margin="0.2" x:Name="Border" Background="LightGray" BorderThickness="1" ToolTip="Làm mờ">
-                                                    <Path Data="{StaticResource TransparentOff}" x:Name="ButtonPath"
+                                                <Border CornerRadius="4" Margin="0.2" x:Name="Border" Background="LightGray" BorderThickness="1" ToolTip="Opacity OFF">
+                                                    <Path Data="{StaticResource Transparent1}" x:Name="ButtonPath"
                                                         Fill="Gray" Stretch="Uniform" Width="9" Height="9" HorizontalAlignment="Center"
                                                         VerticalAlignment="Center" />
                                                 </Border>
 
                                                 <ControlTemplate.Triggers>
-                                                    <DataTrigger Binding="{Binding Path=IsFaded}" Value="True">
+                                                    <DataTrigger Binding="{Binding Path=IsFaded}" Value="0">
                                                         <Setter TargetName="ButtonPath" Property="Fill" Value="DarkGreen" />
-                                                        <Setter TargetName="ButtonPath" Property="Data" Value="{StaticResource TransparentOn}" />
-                                                        <Setter TargetName="Border" Property="ToolTip" Value="Tắt làm mờ" />
+                                                        <Setter TargetName="ButtonPath" Property="Data" Value="{StaticResource Transparent0}" />
+                                                        <Setter TargetName="Border" Property="ToolTip" Value="Opacity 80%" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Path=IsFaded}" Value="1">
+                                                        <Setter TargetName="ButtonPath" Property="Fill" Value="DarkGreen" />
+                                                        <Setter TargetName="ButtonPath" Property="Data" Value="{StaticResource Transparent1}" />
+                                                        <Setter TargetName="Border" Property="ToolTip" Value="Opacity OFF" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Path=IsFaded}" Value="2">
+                                                        <Setter TargetName="ButtonPath" Property="Fill" Value="DarkGreen" />
+                                                        <Setter TargetName="ButtonPath" Property="Data" Value="{StaticResource Transparent2}" />
+                                                        <Setter TargetName="Border" Property="ToolTip" Value="Opacity 40%" />
                                                     </DataTrigger>
                                                     <DataTrigger Binding="{Binding IsMinimized}" Value="True">
                                                         <Setter Property="Visibility" Value="Hidden"/>
@@ -610,26 +626,39 @@
 
                                                     <MultiDataTrigger>
                                                         <MultiDataTrigger.Conditions>
-                                                            <Condition Binding="{Binding Path=IsFaded}" Value="True"/>
+                                                            <Condition Binding="{Binding Path=IsFaded}" Value="0"/>
                                                             <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource Self}}" Value="True"/>
                                                         </MultiDataTrigger.Conditions>
                                                         <MultiDataTrigger.Setters>
                                                             <Setter TargetName="Border" Property="BorderBrush" Value="SkyBlue" />
                                                             <Setter TargetName="Border" Property="Background" Value="#FFBEE6FD"/>
-                                                            <Setter TargetName="ButtonPath" Property="Data" Value="{StaticResource TransparentOff}" />
+                                                            <Setter TargetName="ButtonPath" Property="Data" Value="{StaticResource Transparent1}" />
                                                         </MultiDataTrigger.Setters>
                                                     </MultiDataTrigger>
 
                                                     <MultiDataTrigger>
                                                         <MultiDataTrigger.Conditions>
-                                                            <Condition Binding="{Binding Path=IsFaded}" Value="False"/>
+                                                            <Condition Binding="{Binding Path=IsFaded}" Value="1"/>
                                                             <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource Self}}" Value="True"/>
                                                         </MultiDataTrigger.Conditions>
                                                         <MultiDataTrigger.Setters>
                                                             <Setter TargetName="Border" Property="BorderBrush" Value="SkyBlue" />
                                                             <Setter TargetName="Border" Property="Background" Value="#FFBEE6FD"/>
                                                             <Setter TargetName="ButtonPath" Property="Fill" Value="DarkGreen" />
-                                                            <Setter TargetName="ButtonPath" Property="Data" Value="{StaticResource TransparentOn}" />
+                                                            <Setter TargetName="ButtonPath" Property="Data" Value="{StaticResource Transparent2}" />
+                                                        </MultiDataTrigger.Setters>
+                                                    </MultiDataTrigger>
+
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding Path=IsFaded}" Value="2"/>
+                                                            <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                                        </MultiDataTrigger.Conditions>
+                                                        <MultiDataTrigger.Setters>
+                                                            <Setter TargetName="Border" Property="BorderBrush" Value="SkyBlue" />
+                                                            <Setter TargetName="Border" Property="Background" Value="#FFBEE6FD"/>
+                                                            <Setter TargetName="ButtonPath" Property="Fill" Value="DarkGreen" />
+                                                            <Setter TargetName="ButtonPath" Property="Data" Value="{StaticResource Transparent0}" />
                                                         </MultiDataTrigger.Setters>
                                                     </MultiDataTrigger>
                                                 </ControlTemplate.Triggers>

@@ -49,10 +49,10 @@ namespace JTranslator.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool IsFaded {
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int IsFaded {
             get {
-                return ((bool)(this["IsFaded"]));
+                return ((int)(this["IsFaded"]));
             }
             set {
                 this["IsFaded"] = value;
