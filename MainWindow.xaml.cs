@@ -14,6 +14,7 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -42,13 +43,16 @@ namespace JTranslator
     /// </summary>
     public partial class MainWindow : Window
     {
-        private const string DataFileName = "Kanji.bin";
+        private const string KanjiFileName = "Kanji.bin";
+        private const string SettingFileName = "Setting.bin";
+        private const string HistoryFileName = "History.bin";
         private readonly NotifyChanged _notify;
         private CancellationTokenSource _cancellationTokenSource;
         private IKeyboardMouseEvents _globalMouseHook;
         private Google? _google;
-        private List<string> _histories;
-        private List<Result> kanjiList;
+        private List<string> histories = new();
+        private List<Result> kanjiList = new();
+        private Setting setting = new();
         private Mazii? _mazii;
         private bool _isLoadingNew;
         private bool _isLoadingKanji = false;
@@ -65,6 +69,9 @@ namespace JTranslator
         private readonly MouseEventHandler _mouseDownHandler;
         //private System.Windows.Forms.NotifyIcon notifyIcon = null;
 
+        private Thread? _maziiThread;
+        private Thread? _googleThread;
+
         [DllImport("user32.dll", SetLastError = true)]
         static extern int GetWindowLong(IntPtr hWnd, int nIndex);
         [DllImport("user32.dll")]
@@ -78,17 +85,27 @@ namespace JTranslator
         {
             InitializeComponent();
             System.Windows.Forms.Application.EnableVisualStyles();
+            ServicePointManager.UseNagleAlgorithm = false;
+            ServicePointManager.Expect100Continue = false;
             CheckGitHubNewerVersion();
 
             InitNotifyicon();
+            setting.Init();
+            DeserializeData(SettingFileName);
             //Console.OutputEncoding = Encoding.UTF8;
             _notify = new NotifyChanged();
-            _notify.IsJaVi = Settings.Default.IsJaVi;
-            _notify.IsAutoTranslate = Settings.Default.IsAutoTranslate;
-            _notify.IsFaded = Settings.Default.IsFaded;
-            _notify.IsLoadKanji = Settings.Default.IsLoadKanji;
-            _notify.IsRunOnStartUp = Settings.Default.IsRunOnStartUp;
-            _notify.IsDoubleClickOn = Settings.Default.IsDoubleClickOn;
+            //_notify.IsJaVi = Settings.Default.IsJaVi;
+            //_notify.IsAutoTranslate = Settings.Default.IsAutoTranslate;
+            //_notify.IsFaded = Settings.Default.IsFaded;
+            //_notify.IsLoadKanji = Settings.Default.IsLoadKanji;
+            //_notify.IsRunOnStartUp = Settings.Default.IsRunOnStartUp;
+            //_notify.IsDoubleClickOn = Settings.Default.IsDoubleClickOn;
+            _notify.IsJaVi = setting.IsJavi;
+            _notify.IsAutoTranslate = setting.IsAutoTranslate;
+            _notify.IsFaded = setting.IsFaded;
+            _notify.IsLoadKanji = setting.IsLoadKanji;
+            _notify.IsRunOnStartUp = setting.IsRunOnStartUp;
+            _notify.IsDoubleClickOn = setting.IsDoubleClickOn;
             DataContext = _notify;
 
             StartHooks();
@@ -99,12 +116,9 @@ namespace JTranslator
             kbh.Regist(ModifierKeys.Control | ModifierKeys.Alt, Key.M, MiniMaximize);
 
             InitData();
-            kanjiList = new List<Result>();
-            DeserializeData();
-            _histories = Settings.Default.Histories != null
-                ? new List<string>(Settings.Default.Histories.Cast<string>().ToList())
-                : new List<string>();
-            HistoryListView.ItemsSource = _histories;
+            DeserializeData(HistoryFileName);
+            DeserializeData(KanjiFileName);
+            HistoryListView.ItemsSource = histories;
 
             //Loaded += Main_Loaded;
 
@@ -116,14 +130,18 @@ namespace JTranslator
             //KanjiLookup(kanjiList.Select(x => x.kanji).Take(10).ToList(), 0);
 
             // Check run at startup
-            if (!_notify.IsRunOnStartUp) return;
-            using var key = Registry.CurrentUser.OpenSubKey
-                ("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
-            var appName = Assembly.GetExecutingAssembly().GetName().Name;
-            if (key?.GetValueNames().Contains(appName) ?? false)
+            if (_notify.IsRunOnStartUp)
             {
-                key?.SetValue(appName, "\"" + System.Environment.GetCommandLineArgs()[0] + "\"");
+                using var key = Registry.CurrentUser.OpenSubKey
+                ("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+                var appName = Assembly.GetExecutingAssembly().GetName().Name;
+                if (key?.GetValueNames().Contains(appName) ?? false)
+                {
+                    //key?.SetValue(appName, "\"" + System.Environment.GetCommandLineArgs()[0] + "\"");
+                    key.SetValue(appName, System.Windows.Forms.Application.ExecutablePath);
+                }
             }
+            //Console.WriteLine("Loaded!");
         }
 
         private async void CheckGitHubNewerVersion(bool forceShowMessage = false)
@@ -131,32 +149,41 @@ namespace JTranslator
             //Get all releases from GitHub
             const string uri = "https://api.github.com/repos/jackypham94/JTranslator/releases";
             var request = (HttpWebRequest)WebRequest.Create(uri);
+            request.KeepAlive = false;
             request.Method = "GET";
             request.ContentLength = 0;
             request.ContentType = "application/json";
             request.UserAgent = USER_AGENT;
+            request.Proxy = null;
             var git = new Git();
             void Action()
             {
                 try
                 {
-                    var response = (HttpWebResponse)request.GetResponse();
+                    using var response = (HttpWebResponse)request.GetResponse();
                     if (response.StatusCode != HttpStatusCode.OK)
                     {
                         var message = $"Request failed. Received HTTP {response.StatusCode}";
                         throw new ApplicationException(message);
                     }
 
-                    var responseStream = response.GetResponseStream();
-                    if (responseStream == null) return;
-                    using (var reader = new StreamReader(responseStream))
+                    using (var responseStream = response.GetResponseStream())
                     {
-                        var jsonString = reader.ReadToEnd();
-                        var gits = new List<Git>();
-                        gits = JsonConvert.DeserializeObject<List<Git>>(jsonString);
-                        //var data = JObject.Parse(jsonString);
-                        git = gits.First();
+                        if (responseStream == null) return;
+                        using (var reader = new StreamReader(responseStream, Encoding.UTF8))
+                        {
+                            var jsonString = reader.ReadToEnd();
+                            var gits = new List<Git>();
+                            gits = JsonConvert.DeserializeObject<List<Git>>(jsonString);
+                            //var data = JObject.Parse(jsonString);
+                            git = gits.First();
+                            reader.Close();
+                        }
+
+                        responseStream.Flush();
+                        responseStream.Close();
                     }
+                    response.Close();
                 }
                 catch (WebException e)
                 {
@@ -178,9 +205,10 @@ namespace JTranslator
                     {
                         //The version on GitHub is more up to date than this local release.
                         var result = MessageBox.Show(new Form { TopMost = true }, "The version on GitHub is more up to date than this local release.\n" +
-                            "Do you want to download the new version now?\n\n" +
+                            "Do you want to download the new version now?\n" +
                             $"Local version: {currentVersion}\n" +
-                            $"New version: {gitVersion}", @"JTranslator", MessageBoxButtons.YesNo);
+                            $"New version: {gitVersion}\n" +
+                            $"{git.body}", @"JTranslator", MessageBoxButtons.YesNo);
                         if (result == System.Windows.Forms.DialogResult.Yes)
                         {
                             System.Diagnostics.Process.Start(git.assets.Count > 0 ? git.assets.First().browser_download_url : git.html_url);
@@ -263,33 +291,88 @@ namespace JTranslator
             };
         }
 
-        private void DeserializeData()
+        private void DeserializeData(string fileName)
         {
-            if (!File.Exists(DataFileName)) return;
-            kanjiList.Clear();
-            using (var file = File.OpenRead(DataFileName))
+            if (!File.Exists(fileName)) return;
+            using var file = File.OpenRead(fileName);
+            switch (fileName)
             {
-                kanjiList = Serializer.Deserialize<List<Result>>(file);
+                case KanjiFileName:
+                    kanjiList = Serializer.Deserialize<List<Result>>(file);
+                    break;
+                case SettingFileName:
+                    setting = Serializer.Deserialize<Setting>(file);
+                    break;
+                case HistoryFileName:
+                    histories = Serializer.Deserialize<List<String>>(file);
+                    if (histories.Count() > 100)
+                    {
+                        histories = histories.Skip(Math.Max(0, histories.Count() - 100)).ToList();
+                        SerializeData(HistoryFileName);
+                    }
+                    histories.Reverse();
+                    break;
+                default:
+                    break;
             }
-            //kanjiList.RemoveAll(x => x.kanji == "");
         }
 
-        private void SerializeData()
+        private void SerializeData(string fileName)
         {
-            using (var file = File.Create(DataFileName))
+            using var file = File.Create(fileName);
+            switch (fileName)
             {
-                Serializer.Serialize(file, kanjiList);
+                case KanjiFileName:
+                    Serializer.Serialize(file, kanjiList);
+                    break;
+                case SettingFileName:
+                    Serializer.Serialize(file, setting);
+                    break;
+                case HistoryFileName:
+                    Serializer.Serialize(file, histories);
+                    break;
+                default:
+                    break;
             }
         }
 
-        private void SerializeObject(List<Result> result)
+        //private void SaveHistoryData(string text)
+        //{
+        //    //Dispatcher?.Invoke(DispatcherPriority.Render, new Action(() =>
+        //    //{
+        //    //    using var file = File.Open(HistoryFileName, System.IO.FileMode.Append, FileAccess.Write);
+        //    //    Serializer.Serialize(file, data);
+        //    //}));
+        //    if (text.Length >= 100) return;
+        //    var index = histories.IndexOf(text.Trim());
+        //    if (index >= 0) histories.RemoveAt(index);
+        //    histories.Insert(0, text.Trim());
+        //    if (histories.Count > 100) histories.RemoveAt(100);
+        //    if (HistoryPopup.IsOpen) HistoryListView.Items.Refresh();
+        //    SerializeData(HistoryFileName);
+        //}
+
+        private void SerializeHistoryObject(string text)
+        {
+            if (text.Length >= 100) return;
+            var index = histories.IndexOf(text.Trim());
+            if (index >= 0) histories.RemoveAt(index);
+            histories.Insert(0, text.Trim());
+            if (histories.Count > 100) histories.RemoveAt(100);
+            if (HistoryPopup.IsOpen) HistoryListView.Items.Refresh();
+            Dispatcher?.Invoke(DispatcherPriority.Render, new Action(() =>
+            {
+                using var file = File.Open(HistoryFileName, System.IO.FileMode.Append, FileAccess.Write);
+                Serializer.Serialize(file, text);
+            }));
+        }
+
+        private void SerializeKanjiObject(List<Result> result)
         {
             Dispatcher?.Invoke(DispatcherPriority.Render, new Action(() =>
             {
-                using (var file = File.Open(DataFileName, System.IO.FileMode.Append, FileAccess.Write))
-                {
-                    Serializer.Serialize(file, result);
-                }
+                using var file = File.Open(KanjiFileName, System.IO.FileMode.Append, FileAccess.Write);
+                Serializer.Serialize(file, result);
             }));
         }
 
@@ -402,16 +485,6 @@ namespace JTranslator
             GC.SuppressFinalize(this);
         }
 
-        private void SaveHistory(string data)
-        {
-            if (data.Length >= 20) return;
-            var index = _histories.IndexOf(data.Trim());
-            if (index >= 0) _histories.RemoveAt(index);
-            _histories.Insert(0, data.Trim());
-            if (_histories.Count > 20) _histories.RemoveAt(20);
-            //if (HistoryPopup.IsOpen) HistoryListView.Items.Refresh();
-        }
-
         //private void ClipboardChanged(object sender, EventArgs e)
         //{
         //    // Handle your clipboard update here, debug logging example:
@@ -461,25 +534,13 @@ namespace JTranslator
 
         protected override void OnClosing(CancelEventArgs e)
         {
-            //SerializeData();
-            Settings.Default.IsJaVi = _notify.IsJaVi;
-            Settings.Default.IsAutoTranslate = _notify.IsAutoTranslate;
-            Settings.Default.IsFaded = _notify.IsFaded;
-            Settings.Default.IsLoadKanji = _notify.IsLoadKanji;
-            Settings.Default.IsRunOnStartUp = _notify.IsRunOnStartUp;
-            Settings.Default.IsDoubleClickOn = _notify.IsDoubleClickOn;
-            if (Settings.Default.Histories != null)
-            {
-                Settings.Default.Histories.Clear();
-                Settings.Default.Histories.AddRange(_histories.ToArray());
-            }
-            else
-            {
-                Settings.Default.Histories = new StringCollection();
-                Settings.Default.Histories.AddRange(_histories.ToArray());
-            }
-
-            Settings.Default.Save();
+            setting.IsJavi = _notify.IsJaVi;
+            setting.IsAutoTranslate = _notify.IsAutoTranslate;
+            setting.IsFaded = _notify.IsFaded;
+            setting.IsLoadKanji = _notify.IsLoadKanji;
+            setting.IsRunOnStartUp = _notify.IsRunOnStartUp;
+            setting.IsDoubleClickOn = _notify.IsDoubleClickOn;
+            SerializeData(SettingFileName);
             DisposeHooks();
             UnsubscribeLocalEvents();
             base.OnClosing(e);
@@ -498,7 +559,7 @@ namespace JTranslator
                     break;
                 case NativeMethods.WmDrawclipboard:
                     if (_notify.IsAutoTranslate && Logo.Visibility == Visibility.Visible)
-                        HandleTextCaptured(msg, wParam, lParam).ConfigureAwait(false);
+                        _ = HandleTextCaptured(msg, wParam, lParam).ConfigureAwait(false);
                     break;
             }
 
@@ -535,7 +596,7 @@ namespace JTranslator
                 GoogleRichTextBox.Document.Blocks.Clear();
                 MaziiTranslate(text);
                 GoogleTranslate(text, _notify.IsJaVi ? "ja" : "vi", _notify.IsJaVi ? "vi" : "ja");
-                SaveHistory(text);
+                SerializeHistoryObject(text);
             }
         }
 
@@ -545,7 +606,7 @@ namespace JTranslator
             {
                 item.date = DateTime.Now;
             }
-            SerializeData();
+            SerializeData(KanjiFileName);
             MessageBox.Show(@"Done!");
         }
 
@@ -557,32 +618,41 @@ namespace JTranslator
             var uri =
                 $"https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&dt=bd&dj=1&dt=ex&dt=ld&dt=md&dt=qca&dt=rw&dt=rm&dt=ss&dt=at&sl={@from}&tl={to}&q=";
             var request = (HttpWebRequest)WebRequest.Create(uri + Uri.EscapeDataString(sourceText));
+            request.KeepAlive = false;
             request.UserAgent = USER_AGENT;
             request.Method = "GET";
             request.ContentLength = 0;
             request.ContentType = "application/json";
+            request.Proxy = null;
 
             void Action()
             {
                 try
                 {
-                    var response = (HttpWebResponse)request.GetResponse();
+                    _googleThread = Thread.CurrentThread;
+                    using var response = (HttpWebResponse)request.GetResponse();
                     if (response.StatusCode != HttpStatusCode.OK)
                     {
                         var message = $"Request failed. Received HTTP {response.StatusCode}";
                         throw new ApplicationException(message);
                     }
 
-                    var responseStream = response.GetResponseStream();
-                    if (responseStream == null) return;
-                    using (var reader = new StreamReader(responseStream))
+                    using (var responseStream = response.GetResponseStream())
                     {
-                        var jsonString = reader.ReadToEnd();
-                        jsonString = jsonString.Replace(@"\r", "");
-                        jsonString = jsonString.Replace(@"\n", "");
-                        _google = new Google();
-                        _google = JsonConvert.DeserializeObject<Google>(jsonString);
+                        if (responseStream == null) return;
+                        using (var reader = new StreamReader(responseStream, Encoding.UTF8))
+                        {
+                            var jsonString = reader.ReadToEnd();
+                            jsonString = jsonString.Replace(@"\r", "");
+                            jsonString = jsonString.Replace(@"\n", "");
+                            _google = new Google();
+                            _google = JsonConvert.DeserializeObject<Google>(jsonString);
+                        }
+
+                        responseStream.Flush();
+                        responseStream.Close();
                     }
+                    response.Dispose();
                 }
                 catch (WebException)
                 {
@@ -625,6 +695,7 @@ namespace JTranslator
                     GoogleRichTextBox.Visibility = Visibility.Visible;
 
                 HideProgressBar();
+                _googleThread = null;
             }, TaskScheduler.FromCurrentSynchronizationContext());
         }
 
@@ -647,29 +718,39 @@ namespace JTranslator
                 TransProgressBar.Visibility = Visibility.Visible;
                 const string uri = "https://mazii.net/api/search/";
                 var request = (HttpWebRequest)WebRequest.Create(uri + Uri.EscapeDataString(sourceText) + "/10/1");
+                request.KeepAlive = false;
+                request.UserAgent = USER_AGENT;
                 request.Method = "GET";
                 request.ContentLength = 0;
                 request.ContentType = "application/json";
+                request.Proxy = null;
 
                 void Action()
                 {
                     try
                     {
-                        var response = (HttpWebResponse)request.GetResponse();
+                        _maziiThread = Thread.CurrentThread;
+                        using var response = (HttpWebResponse)request.GetResponse();
                         if (response.StatusCode != HttpStatusCode.OK)
                         {
                             var message = $"Request failed. Received HTTP {response.StatusCode}";
                             throw new ApplicationException(message);
                         }
 
-                        var responseStream = response.GetResponseStream();
-                        if (responseStream == null) return;
-                        using (var reader = new StreamReader(responseStream))
+                        using (var responseStream = response.GetResponseStream())
                         {
-                            var jsonString = reader.ReadToEnd();
-                            _mazii = new Mazii();
-                            _mazii = JsonConvert.DeserializeObject<Mazii>(jsonString);
+                            if (responseStream == null) return;
+                            using (var reader = new StreamReader(responseStream, Encoding.UTF8))
+                            {
+                                var jsonString = reader.ReadToEnd();
+                                _mazii = new Mazii();
+                                _mazii = JsonConvert.DeserializeObject<Mazii>(jsonString);
+                            }
+
+                            responseStream.Flush();
+                            responseStream.Close();
                         }
+                        response.Dispose();
                     }
                     catch (WebException)
                     {
@@ -762,6 +843,7 @@ namespace JTranslator
                     HideProgressBar();
                     if (Logo.Visibility == Visibility.Visible && MaziiRichTextBox.Visibility == Visibility.Collapsed)
                         MaziiRichTextBox.Visibility = Visibility.Visible;
+                    _maziiThread = null;
                 }, TaskScheduler.FromCurrentSynchronizationContext());
             }
         }
@@ -830,9 +912,9 @@ namespace JTranslator
                                 }
                                 kanjiList.AddRange(kanji.results);
                                 if (count > 0)
-                                    SerializeData();
+                                    SerializeData(KanjiFileName);
                                 else
-                                    SerializeObject(kanji.results);
+                                    SerializeKanjiObject(kanji.results);
                             }
                             else
                             {
@@ -1086,6 +1168,9 @@ namespace JTranslator
 
         private void ClearButton_Click(object sender, RoutedEventArgs e)
         {
+            HideProgressBar(true);
+            if (_maziiThread != null && _maziiThread.IsAlive) _maziiThread.Abort();
+            if (_googleThread != null && _googleThread.IsAlive) _googleThread.Abort();
             SearchTextBox.Text = "";
             MaziiRichTextBox.Document.Blocks.Clear();
             GoogleRichTextBox.Document.Blocks.Clear();
@@ -1149,6 +1234,11 @@ namespace JTranslator
             // The timer must be stopped! We want to act only once per keystroke.
             timer.Stop();
 
+            // Stop previous thread
+            if (_maziiThread != null && _maziiThread.IsAlive) _maziiThread.Abort();
+            if (_googleThread != null && _googleThread.IsAlive) _googleThread.Abort();
+
+            // Search
             var text = SearchTextBox.Text.Trim();
             SearchAsync(text);
         }
@@ -1206,7 +1296,7 @@ namespace JTranslator
             }
 
             if (index < 0) return;
-            SearchTextBox.Text = _histories[index];
+            SearchTextBox.Text = histories[index];
             HistoryPopup.IsOpen = false;
             _notify.IsOpenedHistories = HistoryPopup.IsOpen;
         }
@@ -1238,25 +1328,24 @@ namespace JTranslator
 
         private void ClearHisPopupButton_Click(object sender, RoutedEventArgs e)
         {
-            _histories.Clear();
+            histories.Clear();
             HistoryListView.Items.Refresh();
+            SerializeData(KanjiFileName);
         }
 
         private void RunOnStartUpButton_Click(object sender, RoutedEventArgs e)
         {
-            using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))
+            using RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+            var appName = Assembly.GetExecutingAssembly().GetName().Name;
+            if (_notify.IsRunOnStartUp)
             {
-                if (_notify.IsRunOnStartUp)
-                {
-                    key?.DeleteValue(Assembly.GetExecutingAssembly().GetName().Name, false);
-                }
-                else
-                {
-                    var appName = Assembly.GetExecutingAssembly().GetName().Name;
-                    key?.SetValue(appName, "\"" + Environment.GetCommandLineArgs()[0] + "\"");
-                }
-                _notify.IsRunOnStartUp = !_notify.IsRunOnStartUp;
+                key?.DeleteValue(appName, false);
             }
+            else
+            {
+                key?.SetValue(appName, System.Windows.Forms.Application.ExecutablePath);
+            }
+            _notify.IsRunOnStartUp = !_notify.IsRunOnStartUp;
         }
 
         private void DClickButton_Click(object sender, RoutedEventArgs e)

@@ -895,8 +895,14 @@
                     <Style TargetType="Border">
                         <Setter Property="Opacity" Value="0.8" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsFaded}" Value="True">
+                            <DataTrigger Binding="{Binding IsFaded}" Value="0">
                                 <Setter Property="Opacity" Value="0.4" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsFaded}" Value="1">
+                                <Setter Property="Opacity" Value="0.8" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsFaded}" Value="2">
+                                <Setter Property="Opacity" Value="1" />
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
@@ -1013,8 +1019,14 @@
                     <Style TargetType="Border">
                         <Setter Property="Opacity" Value="0.8" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsFaded}" Value="True">
+                            <DataTrigger Binding="{Binding IsFaded}" Value="0">
                                 <Setter Property="Opacity" Value="0.4" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsFaded}" Value="1">
+                                <Setter Property="Opacity" Value="0.8" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsFaded}" Value="2">
+                                <Setter Property="Opacity" Value="1" />
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
