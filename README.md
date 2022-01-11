@@ -10,7 +10,7 @@ Stable release version: ![version](https://img.shields.io/badge/version-4.4.0.0-
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/jackypham)
 
 ## UI
-![JTranslator UI](JTranslatorUI.png?raw=true)
+![JTranslator UI](JTranslatorUI.jpg?raw=true)
 
 ## Chức năng chính:
 - Dịch được trên mọi ứng dụng miễn là ứng dụng đó có hỗ trợ hightlight và copy text
