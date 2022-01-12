@@ -299,12 +299,15 @@ namespace JTranslator
             {
                 case KanjiFileName:
                     kanjiList = Serializer.Deserialize<List<Result>>(file);
+                    file.Close();
                     break;
                 case SettingFileName:
                     setting = Serializer.Deserialize<Setting>(file);
+                    file.Close();
                     break;
                 case HistoryFileName:
                     histories = Serializer.Deserialize<List<String>>(file);
+                    file.Close();
                     if (histories.Count() > 100)
                     {
                         histories = histories.Skip(Math.Max(0, histories.Count() - 100)).ToList();
