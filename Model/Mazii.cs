@@ -33,7 +33,7 @@ namespace JTranslator.Model
 
     public class Datum
     {
-        //public int mobileId { get; set; }
+        public int mobileId { get; set; }
         public string phonetic { get; set; }
         //public string _id { get; set; }
         //public List<Synset> synsets { get; set; }

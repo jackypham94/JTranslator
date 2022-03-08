@@ -5,7 +5,7 @@ Stable release version: ![version](https://img.shields.io/badge/version-4.6.0.0-
 
 **Japanese Translator**
 
-*Developed with ☕ by Jacky*
+*Developed with ❤️ by Jacky*
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/jackypham)
 
@@ -19,6 +19,7 @@ Stable release version: ![version](https://img.shields.io/badge/version-4.6.0.0-
 - Hiển thị kết quả từ 2 trang Mazii và Google Translate
 - Hỗ trợ cách đọc hán tự
 - Hỗ trợ tra Kanji chi tiết & ví dụ
+- Hiển thị top comment từ Mazzi (di chuột lên kết quả)
 - Dịch từ tiếng Nhật sang Việt và ngược lại
 - Morden UI
 - Open source

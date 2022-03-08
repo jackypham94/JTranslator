@@ -10,8 +10,7 @@ namespace JTranslator
 
         public ClipboardManager(Window windowSource)
         {
-            var source = PresentationSource.FromVisual(windowSource) as HwndSource;
-            if (source == null)
+            if (PresentationSource.FromVisual(windowSource) is not HwndSource source)
                 throw new ArgumentException(
                     @"Window source MUST be initialized first, such as in the Window's OnSourceInitialized handler."
                     , nameof(windowSource));

@@ -52,12 +52,15 @@ namespace JTranslator
         private Google? _google;
         private List<string> histories = new();
         private List<Result> kanjiList = new();
+        private List<MaziiComment> _maziiComments = new();
         private Setting setting = new();
         private Mazii? _mazii;
         private bool _isLoadingNew;
         private bool _isLoadingKanji = false;
+        private bool _isMouseHoverText = false;
         //private Guid _currentGuid;
         private Timer _typingTimer;
+        private Timer _hoverTimer;
         private IntPtr _hWndNextViewer;
         private volatile bool _isMouseDown;
         private Point? _mouseFirstPoint;
@@ -79,7 +82,7 @@ namespace JTranslator
         private const int GWL_EX_STYLE = -20;
         private const int WS_EX_APPWINDOW = 0x00040000, WS_EX_TOOLWINDOW = 0x00000080;
 
-        private const string USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 12_0_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36";
+        private const string USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36";
 
         public MainWindow()
         {
@@ -185,7 +188,7 @@ namespace JTranslator
                     }
                     response.Close();
                 }
-                catch (WebException e)
+                catch (WebException)
                 {
                     // Do nothing
                 }
@@ -308,9 +311,9 @@ namespace JTranslator
                 case HistoryFileName:
                     histories = Serializer.Deserialize<List<String>>(file);
                     file.Close();
-                    if (histories.Count() > 100)
+                    if (histories.Count() > 200)
                     {
-                        histories = histories.Skip(Math.Max(0, histories.Count() - 100)).ToList();
+                        histories = histories.Skip(Math.Max(0, histories.Count() - 200)).ToList();
                         SerializeData(HistoryFileName);
                     }
                     histories.Reverse();
@@ -398,14 +401,14 @@ namespace JTranslator
             var paragraph = new Paragraph();
             paragraph.Inlines.Add(
                 new Run(
-                        "• Quét chọn để dịch.\n• Ctrl + Alt + T để tắt/mở tự động dịch.\n• Ctrl + Alt + W để xóa kết quả.\n• Ctrl + Alt + M để thu nhỏ/phóng to.\n• CtrlCtrl + Alt + Q để thoát.")
+                        "• Quét chọn để dịch.\n• Di chuột lên từ vựng để xem comment.\n• Nhấp chuột vào từ vựng để xem chi tiết Kanji.\n• Ctrl + Alt + T để tắt/mở tự động dịch.\n• Ctrl + Alt + W để xóa kết quả.\n• Ctrl + Alt + M để thu nhỏ/phóng to.\n• Ctrl + Alt + Q để thoát.")
                 { Foreground = Brushes.Teal });
             flowDocument.Blocks.Add(paragraph);
             MaziiRichTextBox.Document = flowDocument;
             var flowDocument2 = new FlowDocument();
             var paragraph2 = new Paragraph();
             paragraph2.Inlines.Add(new Run("Cài đặt sẽ được lưu lại.") { Foreground = Brushes.Gray, FontSize = 10 });
-            paragraph2.Inlines.Add(new Run("\n(2019-2021) Developed by Jacky with ☕")
+            paragraph2.Inlines.Add(new Run("\n(2019-2022) Developed by Jacky with ❤️")
             { Foreground = Brushes.Gray, FontSize = 10 });
             paragraph2.Inlines.Add(new Run("\nVer " + Assembly.GetExecutingAssembly().GetName().Version)
             { Foreground = Brushes.Gray, FontSize = 10 });
@@ -777,29 +780,60 @@ namespace JTranslator
                         foreach (var item in _mazii.data)
                         {
                             //create new link
-                            Hyperlink link = new Hyperlink(new Run(item.word))
+                            Hyperlink kanjiLink = new Hyperlink(new Run(item.word))
                             {
                                 IsEnabled = true,
                                 Foreground = Brushes.DarkGreen,
                                 FontWeight = FontWeights.DemiBold,
                                 TextDecorations = null,
+                                //ToolTip = "Xem chi tiết Kanji",
                             };
                             var s = GetCharsInRange(item.word, 0x4E00, 0x9FBF).ToList();
                             if (s.Any())
-                                link.Click += (sender, args) =>
+                                kanjiLink.Click += (sender, args) =>
                                 {
                                     KanjiLookup(s.Select(c => c.ToString()).Distinct().ToList(), 0);
+                                    //GetMaziiComment(item.mobileId);
                                 };
                             else
-                                link.Cursor = System.Windows.Input.Cursors.Arrow;
+                                kanjiLink.Cursor = System.Windows.Input.Cursors.Arrow;
+                            kanjiLink.MouseEnter += (sender, args) =>
+                            {
+                                if (_hoverTimer == null)
+                                {
+                                    _hoverTimer = new Timer { Interval = 500 };
+                                    _hoverTimer.Tick += (sender, args) =>
+                                    {
+                                        // var timer = sender as DispatcherTimer; // WPF
+                                        if (!(sender is Timer timer))
+                                            return;
+                                        // The timer must be stopped! We want to act only once per keystroke.
+                                        timer.Stop();
+                                        _isMouseHoverText = true;
+                                        GetMaziiComment((int)timer.Tag);
+                                    };
+                                }
+                                _hoverTimer.Stop(); // Resets the timer
+                                _hoverTimer.Tag = item.mobileId;
+                                _hoverTimer.Start();
+                            };
+
+                            kanjiLink.MouseLeave += (sender, args) =>
+                            {
+                                _hoverTimer.Stop();
+                                _isMouseHoverText = false;
+                                CommentPopup.IsOpen = false;
+                            };
+
 
                             paragraph.Inlines.Add("\n");
-                            paragraph.Inlines.Add(link);
+                            paragraph.Inlines.Add(kanjiLink);
                             //paragraph.Inlines.Add(new Run("\n" + item.word)
                             //{ Foreground = Brushes.DarkGreen, FontWeight = FontWeights.DemiBold });
                             if (item.phonetic?.Length > 0)
                                 paragraph.Inlines.Add(new Run(" (" + item.phonetic + ")")
                                 { Foreground = Brushes.OrangeRed });
+
                             paragraph.Inlines.Add(new Run(" ") { Foreground = Brushes.DarkSlateGray, FontSize = 11 });
                             foreach (var mean in item.means)
                             {
@@ -808,6 +842,21 @@ namespace JTranslator
                                     paragraph.Inlines.Add(new Run(" (" + mean.kind + ") ") { Foreground = Brushes.Teal });
                                 paragraph.Inlines.Add(new Run(mean.mean + ""));
                             }
+                            //var cmtLink = new Hyperlink(new Run("\ncomments")
+                            //{
+                            //    IsEnabled = true,
+                            //    Foreground = Brushes.DarkGray,
+                            //    FontWeight = FontWeights.DemiBold,
+                            //    FontSize = 8,
+                            //    TextDecorations = null,
+                            //    ToolTip = "Xem comment của từ này",
+                            //});
+                            //cmtLink.Click += (sender, args) =>
+                            //{
+                            //    GetMaziiComment(item.mobileId);
+                            //};
+                            //paragraph.Inlines.Add(cmtLink);
+
                             //if (item.related_words?.word?.Count > 0)
                             //{
                             //    //dict = new List<string>(item.opposite_word);
@@ -825,7 +874,7 @@ namespace JTranslator
                             var last = item.opposite_word.Last();
                             foreach (var w in item.opposite_word)
                             {
-                                paragraph.Inlines.Add(GetHyperlink(w));
+                                paragraph.Inlines.Add(GetHyperlink(w, Brushes.DarkMagenta));
                                 if (w != last)
                                     paragraph.Inlines.Add(new Run(", ") { Foreground = Brushes.DarkMagenta });
                             }
@@ -851,12 +900,15 @@ namespace JTranslator
             }
         }
 
-        private Hyperlink GetHyperlink(string word)
+        private Hyperlink GetHyperlink(string word, System.Windows.Media.SolidColorBrush foreground)
         {
             var link = new Hyperlink
             {
                 IsEnabled = true,
-                Foreground = Brushes.DarkMagenta,
+                Foreground = foreground,
+                FontWeight = FontWeights.SemiBold,
+                TextDecorations = null,
+                //ToolTip = "Xem nghĩa",
             };
             link.Inlines.Add(word);
             link.Click += (sender, args) => { SearchTextBox.Text = word; };
@@ -902,28 +954,28 @@ namespace JTranslator
 
                         var responseStream = response.GetResponseStream();
                         if (responseStream == null) return;
-                        using (var reader = new StreamReader(responseStream))
+                        using var reader = new StreamReader(responseStream);
+                        var jsonString = reader.ReadToEnd();
+                        kanji = JsonConvert.DeserializeObject<MaziiKanji>(jsonString);
+                        if (kanji.status == 200)
                         {
-                            var jsonString = reader.ReadToEnd();
-                            kanji = JsonConvert.DeserializeObject<MaziiKanji>(jsonString);
-                            if (kanji.status == 200)
+                            var count = kanjiList.RemoveAll(k => kanji.results.Exists(e => e.kanji == k.kanji));
+                            foreach (var kan in kanji.results)
                             {
-                                var count = kanjiList.RemoveAll(k => kanji.results.Exists(e => e.kanji == k.kanji));
-                                foreach (var kan in kanji.results)
-                                {
-                                    kan.date = DateTime.Now;
-                                }
-                                kanjiList.AddRange(kanji.results);
-                                if (count > 0)
-                                    SerializeData(KanjiFileName);
-                                else
-                                    SerializeKanjiObject(kanji.results);
+                                kan.date = DateTime.Now;
                             }
+                            kanjiList.AddRange(kanji.results);
+                            if (count > 0)
+                                SerializeData(KanjiFileName);
                             else
-                            {
-                                //Console.WriteLine(@"Error: " + string.Concat(str2));
-                            }
+                                SerializeKanjiObject(kanji.results);
                         }
+                        else
+                        {
+                            //Console.WriteLine(@"Error: " + string.Concat(str2));
+                        }
+                        responseStream.Flush();
+                        responseStream.Close();
                     }
                     catch (WebException)
                     {
@@ -973,11 +1025,9 @@ namespace JTranslator
                         var str = word + (phonetic.Length > 0 ? @" (" + phonetic + @")" : "");
                         var start = position.GetPositionAtOffset(indexInRun);
                         var textRng = new TextRange(start, start?.GetPositionAtOffset(str.Length + 4));
-                        //Console.WriteLine(textRng.Text);
                         if (textRng.Text.Trim().Equals(str.Trim()))
                         {
                             textRng = new TextRange(start?.GetPositionAtOffset(str.Length + 6), start?.GetPositionAtOffset(str.Length + hantu.Length + 7));
-                            //Console.WriteLine(textRng.Text);
                             if (!textRng.Text.Trim().Equals(hantu))
                             {
                                 MaziiRichTextBox.CaretPosition = start?.GetPositionAtOffset(str.Length + 6);
@@ -1001,6 +1051,95 @@ namespace JTranslator
             }
         }
 
+        private void GetMaziiComment(int wordId)
+        {
+            //KanjiPopup.IsOpen ? -260 : -5
+            if (!KanjiPopup.IsOpen)
+            {
+                CommentPopup.PlacementRectangle = new Rect(-5, 0, 0, 0);
+                var maziiComment = _maziiComments.FirstOrDefault(e => e.wordId == wordId);
+                void Action()
+                {
+                    if (maziiComment == null)
+                    {
+                        maziiComment = new();
+                        const string uri = "https://api.mazii.net/api/get-mean";
+                        var request = (HttpWebRequest)WebRequest.Create(uri);
+                        request.Method = "POST";
+                        request.ContentType = "application/json";
+                        request.UserAgent = USER_AGENT;
+                        using (var streamWriter = new StreamWriter(request.GetRequestStream()))
+                        {
+                            var myData = new
+                            {
+                                wordId = wordId,
+                                type = "word",
+                                dict = "javi"
+                            };
+                            streamWriter.Write(JsonConvert.SerializeObject(myData));
+                        }
+                        try
+                        {
+                            var response = (HttpWebResponse)request.GetResponse();
+                            if (response.StatusCode != HttpStatusCode.OK)
+                            {
+                                var message = $"Request failed. Received HTTP {response.StatusCode}";
+                                throw new ApplicationException(message);
+                            }
+                            using (var responseStream = response.GetResponseStream())
+                            {
+                                if (responseStream == null) return;
+                                using (var reader = new StreamReader(responseStream, Encoding.UTF8))
+                                {
+                                    var jsonString = reader.ReadToEnd();
+                                    maziiComment = new MaziiComment();
+                                    maziiComment = JsonConvert.DeserializeObject<MaziiComment>(jsonString);
+                                    maziiComment.wordId = wordId;
+                                    _maziiComments.Add(maziiComment);
+                                    if (_maziiComments.Count > 10)
+                                    {
+                                        _maziiComments = _maziiComments.Skip(Math.Max(0, _maziiComments.Count() - 10)).ToList();
+                                    }
+                                }
+
+                                responseStream.Flush();
+                                responseStream.Close();
+                            }
+                            response.Dispose();
+                        }
+                        catch (WebException)
+                        {
+                            maziiComment = new MaziiComment
+                            {
+                                status = 500
+                            };
+                        }
+                    }
+                }
+                Task.Run(Action).ContinueWith(x =>
+                {
+                    var flowDocument = new FlowDocument();
+                    var paragraph = new Paragraph();
+                    //paragraph.Inlines.Add(new Run("Comment") { Foreground = Brushes.Gray, FontSize = 10 });
+                    foreach (var comment in maziiComment.result.OrderByDescending(i => i.like).Take(8))
+                    {
+                        paragraph.Inlines.Add(new Run(comment.mean.Trim()) { Foreground = Brushes.Black });
+                        paragraph.Inlines.Add(new Run($"\n {comment.username}") { Foreground = Brushes.DarkGray, FontSize = 10 });
+                        paragraph.Inlines.Add(new Run($"    {comment.like}") { Foreground = Brushes.DarkCyan, FontSize = 10 });
+                        paragraph.Inlines.Add(new Run($"↑") { Foreground = Brushes.DarkGray, FontSize = 10 });
+                        paragraph.Inlines.Add(new Run($" {comment.dislike}") { Foreground = Brushes.DarkCyan, FontSize = 10 });
+                        paragraph.Inlines.Add(new Run($"↓ \n\n") { Foreground = Brushes.DarkGray, FontSize = 10 });
+                    }
+
+                    flowDocument.Blocks.Add(paragraph);
+                    CommentRichTextBox.Document = flowDocument;
+
+                    CommentPopup.IsOpen = maziiComment.result.Count > 0 && _isMouseHoverText;
+
+                }, TaskScheduler.FromCurrentSynchronizationContext());
+            }
+        }
+
         private void KanjiLookup(List<string> kanChars, int index)
         {
             KanjiPopup.IsOpen = true;
@@ -1008,7 +1147,7 @@ namespace JTranslator
             var flowDocument = new FlowDocument();
             var paragraph = new Paragraph();
             paragraph.TextAlignment = TextAlignment.Center;
-            paragraph.Inlines.Add(new Run(kanChars[index] + "\n") { Foreground = Brushes.Teal, FontSize = 35 });
+            paragraph.Inlines.Add(new Run(kanChars[index] + "\n") { Foreground = Brushes.Teal, FontWeight = FontWeights.DemiBold, FontSize = 50 });
             paragraph.Inlines.Add(new Run("(" + (find == null || find.mean.Length == 0 ? "-" : find.mean) + ")\n") { Foreground = Brushes.DarkMagenta, FontSize = 12 });
             for (var i = 0; i < kanChars.Count; i++)
             {
@@ -1046,14 +1185,15 @@ namespace JTranslator
                 flowDocument.Blocks.Add(paragraph);
                 if (find.examples != null)
                 {
-                    paragraph.Inlines.Add(new Run("\nVÍ DỤ:") { Foreground = Brushes.DarkSlateBlue, FontSize = 11, FontWeight = FontWeights.DemiBold });
+                    paragraph.Inlines.Add(new Run("\nVÍ DỤ:\n") { Foreground = Brushes.DarkSlateBlue, FontSize = 11, FontWeight = FontWeights.DemiBold });
                     foreach (var example in find.examples)
                     {
-                        paragraph.Inlines.Add(new Run("\n" + example.w) { Foreground = Brushes.DarkGreen, FontWeight = FontWeights.DemiBold });
+                        paragraph.Inlines.Add(GetHyperlink(example.w, Brushes.DarkGreen));
+                        //paragraph.Inlines.Add(new Run("\n" + example.w) { Foreground = Brushes.DarkGreen, FontWeight = FontWeights.DemiBold });
                         if (example.p?.Length > 0)
                             paragraph.Inlines.Add(new Run(" (" + example.p + ")") { Foreground = Brushes.OrangeRed });
                         paragraph.Inlines.Add(new Run(" - " + example.h) { Foreground = Brushes.DarkSlateGray, FontSize = 11 });
-                        paragraph.Inlines.Add(new Run("\n" + example.m));
+                        paragraph.Inlines.Add(new Run("\n" + example.m + "\n"));
                     }
                     flowDocument.Blocks.Add(paragraph);
                 }
@@ -1370,6 +1510,11 @@ namespace JTranslator
         private void CloseKanjiPopupButton_Click(object sender, RoutedEventArgs e)
         {
             KanjiPopup.IsOpen = !KanjiPopup.IsOpen;
+        }
+
+        private void CloseCommentPopupButton_Click(object sender, RoutedEventArgs e)
+        {
+            CommentPopup.IsOpen = !CommentPopup.IsOpen;
         }
 
         private void HistoryPopup_Closed(object sender, EventArgs e)

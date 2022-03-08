@@ -1010,6 +1010,135 @@
                 </Grid>
             </Border>
         </Popup>
+        <Popup x:Name="CommentPopup" Placement="Left" PlacementRectangle="-260,0,0,0" StaysOpen="True"
+               AllowsTransparency="True" PopupAnimation="Fade" >
+            <Border Visibility="Visible" BorderThickness="0"
+                    CornerRadius="4" Padding="10" Width="250" VerticalAlignment="Top"
+                    Background="White">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Opacity" Value="0.8" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsFaded}" Value="0">
+                                <Setter Property="Opacity" Value="0.4" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsFaded}" Value="1">
+                                <Setter Property="Opacity" Value="0.8" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsFaded}" Value="2">
+                                <Setter Property="Opacity" Value="1" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <!--<Grid VerticalAlignment="Top" ZIndex="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        --><!--<TextBlock Grid.Column="1" Text="Comments" FontSize="14"
+                                   Foreground="Teal" TextWrapping="Wrap" Background="{x:Null}" Margin="5,0,0,0" VerticalAlignment="Center" />--><!--
+                        <Button x:Name="CloseCommentPopupButton" Grid.Column="3" Opacity="0.6" Width="25" Height="25" VerticalAlignment="Center" HorizontalAlignment="Right" Click="CloseCommentPopupButton_Click" >
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border CornerRadius="4" x:Name="Border" Background="LightGray" BorderThickness="1" Margin="0.2">
+                                                    <Path Data="{StaticResource Close}" x:Name="ButtonPath"
+                                                        Fill="Gray" Stretch="Uniform" Width="9" Height="9" HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center" />
+                                                </Border>
+
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="ButtonPath" Property="Fill" Value="DarkRed" />
+                                                        <Setter TargetName="Border" Property="BorderBrush" Value="SkyBlue" />
+                                                        <Setter TargetName="Border" Property="Background" Value="#FFBEE6FD"/>
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding IsMinimized}" Value="True">
+                                                        <Setter Property="Visibility" Value="Hidden"/>
+                                                    </DataTrigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </Grid>-->
+                    <!--<RichTextBox Grid.Row="0" x:Name="aaa" Foreground="Black" FontSize="13"
+                                 Background="{x:Null}" 
+                                 BorderBrush="{x:Null}" BorderThickness="0" Block.LineHeight="6"
+                                 IsReadOnlyCaretVisible="True" IsHitTestVisible="True"
+                                 IsReadOnly="True" IsDocumentEnabled="True" Margin="0,5,0,0" >
+                    </RichTextBox>-->
+                    <TextBlock Grid.Column="1" Text="Comments" FontSize="16" FontWeight="Bold"
+                                   Foreground="Teal" TextWrapping="Wrap" Background="{x:Null}" Margin="5,0,0,0" VerticalAlignment="Center" />
+                    <RichTextBox Grid.Row="1" x:Name="CommentRichTextBox" Foreground="Black" FontSize="13"
+                                 Background="{x:Null}" MaxHeight="450" VerticalScrollBarVisibility="Auto"
+                                 BorderBrush="{x:Null}" BorderThickness="0" Block.LineHeight="6"
+                                 IsReadOnlyCaretVisible="True" IsHitTestVisible="True"
+                                 IsReadOnly="True" IsDocumentEnabled="True" Margin="0,5,0,0" >
+                        <RichTextBox.Resources>
+
+                            <Style TargetType="{x:Type RichTextBox}">
+                                <Style.Triggers>
+                                    <!--<Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+                                        <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="False">
+                                        <Setter Property="HorizontalScrollBarVisibility" Value="Hidden"/>
+                                        <Setter Property="VerticalScrollBarVisibility" Value="Hidden"/>
+                                    </Trigger>-->
+                                </Style.Triggers>
+                            </Style>
+                            <Style TargetType="{x:Type ScrollBar}">
+                                <Setter Property="MinWidth" Value="2" />
+                                <Setter Property="Width" Value="5" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ScrollBar}}" Value="True">
+                                        <DataTrigger.EnterActions>
+                                            <StopStoryboard BeginStoryboardName="sbLoading"/>
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity"  From="0.4" To="0.8" Duration="0:0:1.5" />
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </DataTrigger.EnterActions>
+                                        <DataTrigger.ExitActions>
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity"  From="0.8" To="0.4" Duration="0:0:1.5" />
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </DataTrigger.ExitActions>
+                                    </DataTrigger>
+                                    <EventTrigger RoutedEvent="Loaded">
+                                        <BeginStoryboard Name="sbLoading">
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetProperty="Opacity"  From="0.8" To="0.4" Duration="0:0:1.5" />
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </EventTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </RichTextBox.Resources>
+                    </RichTextBox>
+                    <!--<ProgressBar x:Name="CommentProgressBar" Grid.Row="2" Visibility="Collapsed" Foreground="Teal"
+                             Background="{x:Null}" IsIndeterminate="True" Margin="0,5,0,0" />-->
+                </Grid>
+            </Border>
+        </Popup>
         <Popup x:Name="HistoryPopup" Placement="Right" PlacementRectangle="255,0,0,0" StaysOpen="False"
                AllowsTransparency="True" PopupAnimation="Fade" Closed="HistoryPopup_Closed">
             <Border Visibility="Visible" BorderThickness="0"
@@ -1042,7 +1171,7 @@
                         <Path
                             Data="{StaticResource History}"
                             Fill="Gray" Stretch="Uniform" Width="15" Height="15" />
-                        <TextBlock Grid.Column="1" Text="Histories"
+                        <TextBlock Grid.Column="1" Text="Histories" FontSize="16" FontWeight="Bold"
                                    Foreground="Teal" TextWrapping="Wrap" Background="{x:Null}" Margin="5,0,0,0" VerticalAlignment="Center" />
                         <Button x:Name="ClearHisPopupButton" Grid.Column="2" Opacity="0.6" Width="25" Height="25" VerticalAlignment="Center" HorizontalAlignment="Right" Click="ClearHisPopupButton_Click"  >
                             <Button.Style>
@@ -1050,7 +1179,7 @@
                                     <Setter Property="Template">
                                         <Setter.Value>
                                             <ControlTemplate TargetType="Button">
-                                                <Border CornerRadius="4" x:Name="Border" Background="LightGray" BorderThickness="1" ToolTip="Xóa lịch sử" Margin="0.2">
+                                                <Border CornerRadius="4" x:Name="Border" Background="LightGray" BorderThickness="1" ToolTip="Xoá lịch sử" Margin="0.2">
                                                     <Path Data="{StaticResource Trash}" x:Name="ButtonPath"
                                                         Fill="Gray" Stretch="Uniform" Width="9" Height="9" HorizontalAlignment="Center"
                                                         VerticalAlignment="Center" />
