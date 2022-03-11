@@ -1,7 +1,7 @@
 # JTranslator
 [![Github All Releases](https://img.shields.io/github/downloads/jackypham94/JTranslator/total.svg)]()
 
-Stable release version: ![version](https://img.shields.io/badge/version-4.6.0.0-blue)
+Stable release version: ![version](https://img.shields.io/badge/version-4.8.0.2-green)
 
 **Japanese Translator**
 

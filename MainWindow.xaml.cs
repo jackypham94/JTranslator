@@ -820,6 +820,7 @@ namespace JTranslator
 
                             kanjiLink.MouseLeave += (sender, args) =>
                             {
+                                Mouse.SetCursor(System.Windows.Input.Cursors.Arrow);
                                 _hoverTimer.Stop();
                                 _isMouseHoverText = false;
                                 CommentPopup.IsOpen = false;
@@ -1053,6 +1054,7 @@ namespace JTranslator
 
         private void GetMaziiComment(int wordId)
         {
+            Mouse.SetCursor(System.Windows.Input.Cursors.Wait);
             //KanjiPopup.IsOpen ? -260 : -5
             if (!KanjiPopup.IsOpen)
             {
@@ -1121,20 +1123,24 @@ namespace JTranslator
                     var flowDocument = new FlowDocument();
                     var paragraph = new Paragraph();
                     //paragraph.Inlines.Add(new Run("Comment") { Foreground = Brushes.Gray, FontSize = 10 });
-                    foreach (var comment in maziiComment.result.OrderByDescending(i => i.like).Take(8))
+                    if (maziiComment.result != null)
                     {
-                        paragraph.Inlines.Add(new Run(comment.mean.Trim()) { Foreground = Brushes.Black });
-                        paragraph.Inlines.Add(new Run($"\n {comment.username}") { Foreground = Brushes.DarkGray, FontSize = 10 });
-                        paragraph.Inlines.Add(new Run($"    {comment.like}") { Foreground = Brushes.DarkCyan, FontSize = 10 });
-                        paragraph.Inlines.Add(new Run($"↑") { Foreground = Brushes.DarkGray, FontSize = 10 });
-                        paragraph.Inlines.Add(new Run($" {comment.dislike}") { Foreground = Brushes.DarkCyan, FontSize = 10 });
-                        paragraph.Inlines.Add(new Run($"↓ \n\n") { Foreground = Brushes.DarkGray, FontSize = 10 });
+                        foreach (var comment in maziiComment.result.OrderByDescending(i => i.like).Take(8))
+                        {
+                            paragraph.Inlines.Add(new Run(comment.mean.Trim()) { Foreground = Brushes.Black });
+                            paragraph.Inlines.Add(new Run($"\n {comment.username}") { Foreground = Brushes.DarkGray, FontSize = 10 });
+                            paragraph.Inlines.Add(new Run($"    {comment.like}") { Foreground = Brushes.DarkCyan, FontSize = 10 });
+                            paragraph.Inlines.Add(new Run($"↑") { Foreground = Brushes.DarkGray, FontSize = 10 });
+                            paragraph.Inlines.Add(new Run($" {comment.dislike}") { Foreground = Brushes.DarkCyan, FontSize = 10 });
+                            paragraph.Inlines.Add(new Run($"↓ \n\n") { Foreground = Brushes.DarkGray, FontSize = 10 });
+                        }
+
+                        flowDocument.Blocks.Add(paragraph);
+                        CommentRichTextBox.Document = flowDocument;
+
+                        CommentPopup.IsOpen = maziiComment.result.Count > 0 && _isMouseHoverText;
                     }
-
-                    flowDocument.Blocks.Add(paragraph);
-                    CommentRichTextBox.Document = flowDocument;
-
-                    CommentPopup.IsOpen = maziiComment.result.Count > 0 && _isMouseHoverText;
+                    Mouse.SetCursor(System.Windows.Input.Cursors.Hand);
 
                 }, TaskScheduler.FromCurrentSynchronizationContext());
             }
