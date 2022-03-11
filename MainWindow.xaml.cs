@@ -824,6 +824,7 @@ namespace JTranslator
                                 _hoverTimer.Stop();
                                 _isMouseHoverText = false;
                                 CommentPopup.IsOpen = false;
+                                ToastBorder.Visibility = Visibility.Collapsed;
                             };
 
 
@@ -1139,6 +1140,11 @@ namespace JTranslator
                         CommentRichTextBox.Document = flowDocument;
 
                         CommentPopup.IsOpen = maziiComment.result.Count > 0 && _isMouseHoverText;
+                    } 
+                    if (maziiComment.result == null || maziiComment.result.Count == 0)
+                    {
+                        ToastBorder.Visibility = Visibility.Visible;
+                        ToastTextBlock.Text = "Không có comment";
                     }
                     Mouse.SetCursor(System.Windows.Input.Cursors.Hand);
 
@@ -1260,6 +1266,20 @@ namespace JTranslator
             if (MaziiRichTextBox.Document.ContentStart.CompareTo(MaziiRichTextBox.Document.ContentEnd) == 0 ||
                 GoogleRichTextBox.Document.ContentStart.CompareTo(GoogleRichTextBox.Document.ContentEnd) == 0 || _isLoadingKanji) return;
             TransProgressBar.Visibility = Visibility.Collapsed;
+        }
+
+        private void ShowToast(string message)
+        {
+            ToastBorder.Visibility = Visibility.Visible;
+            ToastTextBlock.Text = message;
+            DispatcherTimer timer = new DispatcherTimer();
+            timer.Interval = new TimeSpan(0, 0, 1);
+            timer.Tick += (sender, args) =>
+            {
+                ToastBorder.Visibility = Visibility.Collapsed;
+                timer.Stop();
+            };
+            timer.Start();
         }
 
         private void Root_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

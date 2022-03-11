@@ -788,13 +788,16 @@
                         </Button.Style>
                     </Button>
                 </Grid>
-
-                <RichTextBox Grid.Row="2" x:Name="MaziiRichTextBox" Foreground="Black" FontSize="13"
+                <Grid Grid.Row="2">
+                    <Border x:Name="ToastBorder" Panel.ZIndex="2" Visibility="Collapsed" CornerRadius="11" Background="#CC000000" Height="22" Width="150" Margin="10" Opacity="0.5" VerticalAlignment="Top">
+                        <TextBlock x:Name="ToastTextBlock" Text="Không có comment" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <RichTextBox x:Name="MaziiRichTextBox" Foreground="Black" FontSize="13"
                              Background="{x:Null}" MaxHeight="450" VerticalScrollBarVisibility="Auto"
                              BorderBrush="{x:Null}" BorderThickness="0" Block.LineHeight="6"
                              IsReadOnlyCaretVisible="True" IsHitTestVisible="True"
                              IsReadOnly="True" IsDocumentEnabled="True" Margin="0,5,0,0" >
-                    <!--<RichTextBox.ContextMenu>
+                        <!--<RichTextBox.ContextMenu>
                         <ContextMenu>
                             <MenuItem x:Name="CopyMenu" Header="Copy" Command="Copy" Tag="" >
                                 <MenuItem.Icon>
@@ -809,39 +812,41 @@
                             </MenuItem>
                         </ContextMenu>
                     </RichTextBox.ContextMenu>-->
-                    <RichTextBox.Resources>
-                        <Style TargetType="{x:Type ScrollBar}">
-                            <Setter Property="MinWidth" Value="2" />
-                            <Setter Property="Width" Value="5" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ScrollBar}}" Value="True">
-                                    <DataTrigger.EnterActions>
-                                        <StopStoryboard BeginStoryboardName="sbLoading"/>
-                                        <BeginStoryboard>
-                                            <Storyboard>
-                                                <DoubleAnimation Storyboard.TargetProperty="Opacity"  From="0.4" To="0.8" Duration="0:0:1.5" />
-                                            </Storyboard>
-                                        </BeginStoryboard>
-                                    </DataTrigger.EnterActions>
-                                    <DataTrigger.ExitActions>
-                                        <BeginStoryboard>
+                        <RichTextBox.Resources>
+                            <Style TargetType="{x:Type ScrollBar}">
+                                <Setter Property="MinWidth" Value="2" />
+                                <Setter Property="Width" Value="5" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ScrollBar}}" Value="True">
+                                        <DataTrigger.EnterActions>
+                                            <StopStoryboard BeginStoryboardName="sbLoading"/>
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity"  From="0.4" To="0.8" Duration="0:0:1.5" />
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </DataTrigger.EnterActions>
+                                        <DataTrigger.ExitActions>
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity"  From="0.8" To="0.4" Duration="0:0:1.5" />
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </DataTrigger.ExitActions>
+                                    </DataTrigger>
+                                    <EventTrigger RoutedEvent="Loaded">
+                                        <BeginStoryboard Name="sbLoading">
                                             <Storyboard>
                                                 <DoubleAnimation Storyboard.TargetProperty="Opacity"  From="0.8" To="0.4" Duration="0:0:1.5" />
                                             </Storyboard>
                                         </BeginStoryboard>
-                                    </DataTrigger.ExitActions>
-                                </DataTrigger>
-                                <EventTrigger RoutedEvent="Loaded">
-                                    <BeginStoryboard Name="sbLoading">
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetProperty="Opacity"  From="0.8" To="0.4" Duration="0:0:1.5" />
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </EventTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </RichTextBox.Resources>
-                </RichTextBox>
+                                    </EventTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </RichTextBox.Resources>
+                    </RichTextBox>
+                </Grid>
+                
                 <!--<ProgressBar x:Name="MaziiProgressBar" Grid.Row="3" Visibility="Collapsed" Foreground="Teal"
                          Background="{x:Null}" IsIndeterminate="True"  Margin="0,5,0,0" />-->
                 <RichTextBox Grid.Row="3" x:Name="GoogleRichTextBox" Foreground="Black" Margin="0,5,0,0" FontSize="13" MaxHeight="450"
@@ -884,7 +889,6 @@
                 <ProgressBar x:Name="TransProgressBar" Grid.Row="4" Visibility="Collapsed" Foreground="Teal"
                              Background="{x:Null}" IsIndeterminate="True" Margin="0,5,0,0" />
             </Grid>
-
         </Border>
         <Popup x:Name="KanjiPopup" Placement="Left" PlacementRectangle="-5,0,0,0" StaysOpen="False"
                AllowsTransparency="True" PopupAnimation="Fade" Closed="KanjiPopup_Closed">
@@ -1044,8 +1048,10 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        --><!--<TextBlock Grid.Column="1" Text="Comments" FontSize="14"
-                                   Foreground="Teal" TextWrapping="Wrap" Background="{x:Null}" Margin="5,0,0,0" VerticalAlignment="Center" />--><!--
+                        -->
+                    <!--<TextBlock Grid.Column="1" Text="Comments" FontSize="14"
+                                   Foreground="Teal" TextWrapping="Wrap" Background="{x:Null}" Margin="5,0,0,0" VerticalAlignment="Center" />-->
+                    <!--
                         <Button x:Name="CloseCommentPopupButton" Grid.Column="3" Opacity="0.6" Width="25" Height="25" VerticalAlignment="Center" HorizontalAlignment="Right" Click="CloseCommentPopupButton_Click" >
                             <Button.Style>
                                 <Style TargetType="Button">
