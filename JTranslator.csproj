@@ -6,7 +6,7 @@
 		<Nullable>enable</Nullable>
 		<UseWPF>true</UseWPF>
 		<NeutralLanguage>vi-VN</NeutralLanguage>
-		<AssemblyVersion>4.8.0.2</AssemblyVersion>
+		<AssemblyVersion>4.9.1.0</AssemblyVersion>
 		<Authors>Jacky</Authors>
 		<StartupObject>JTranslator.App</StartupObject>
 		<Description>Translator was developed with ❤ by Jacky.</Description>
@@ -17,10 +17,15 @@
 		<Platforms>AnyCPU;x64</Platforms>
 		<DebugType>full</DebugType>
 		<SignAssembly>True</SignAssembly>
+		<ApplicationManifest>app.manifest</ApplicationManifest>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-		<Optimize>True</Optimize>
+		<Optimize>False</Optimize>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+	  <Optimize>True</Optimize>
 	</PropertyGroup>
 
 	<ItemGroup>

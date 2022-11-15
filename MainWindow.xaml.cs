@@ -4,6 +4,7 @@ using JTranslator.Properties;
 using JTranslator.Util;
 using Microsoft.Win32;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using ProtoBuf;
 using System;
 using System.Collections.Generic;
@@ -50,14 +51,14 @@ namespace JTranslator
         private CancellationTokenSource _cancellationTokenSource;
         private IKeyboardMouseEvents _globalMouseHook;
         private Google? _google;
-        private List<string> histories = new();
-        private List<Result> kanjiList = new();
+        private List<string> _histories = new();
+        private List<Result> _kanjiList = new();
         private List<MaziiComment> _maziiComments = new();
-        private Setting setting = new();
+        private Setting _setting = new();
         private Mazii? _mazii;
         private bool _isLoadingNew;
-        private bool _isLoadingKanji = false;
-        private bool _isMouseHoverText = false;
+        private bool _isLoadingKanji;
+        private bool _isMouseHoverText;
         //private Guid _currentGuid;
         private Timer _typingTimer;
         private Timer _hoverTimer;
@@ -79,6 +80,8 @@ namespace JTranslator
         static extern int GetWindowLong(IntPtr hWnd, int nIndex);
         [DllImport("user32.dll")]
         static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+        [DllImport("user32.dll", SetLastError = true)]
+        internal static extern bool MoveWindow(IntPtr hWnd, int X, int Y, int nWidth, int nHeight, bool bRepaint);
         private const int GWL_EX_STYLE = -20;
         private const int WS_EX_APPWINDOW = 0x00040000, WS_EX_TOOLWINDOW = 0x00000080;
 
@@ -93,22 +96,24 @@ namespace JTranslator
             CheckGitHubNewerVersion();
 
             InitNotifyicon();
-            setting.Init();
+            _setting.Init();
             DeserializeData(SettingFileName);
             //Console.OutputEncoding = Encoding.UTF8;
-            _notify = new NotifyChanged();
-            //_notify.IsJaVi = Settings.Default.IsJaVi;
-            //_notify.IsAutoTranslate = Settings.Default.IsAutoTranslate;
-            //_notify.IsFaded = Settings.Default.IsFaded;
-            //_notify.IsLoadKanji = Settings.Default.IsLoadKanji;
-            //_notify.IsRunOnStartUp = Settings.Default.IsRunOnStartUp;
-            //_notify.IsDoubleClickOn = Settings.Default.IsDoubleClickOn;
-            _notify.IsJaVi = setting.IsJavi;
-            _notify.IsAutoTranslate = setting.IsAutoTranslate;
-            _notify.IsFaded = setting.IsFaded;
-            _notify.IsLoadKanji = setting.IsLoadKanji;
-            _notify.IsRunOnStartUp = setting.IsRunOnStartUp;
-            _notify.IsDoubleClickOn = setting.IsDoubleClickOn;
+            _notify = new NotifyChanged
+            {
+                //_notify.IsDoubleClickOn = Settings.Default.IsDoubleClickOn;
+                //_notify.IsRunOnStartUp = Settings.Default.IsRunOnStartUp;
+                //_notify.IsLoadKanji = Settings.Default.IsLoadKanji;
+                //_notify.IsFaded = Settings.Default.IsFaded;
+                //_notify.IsAutoTranslate = Settings.Default.IsAutoTranslate;
+                //_notify.IsJaVi = Settings.Default.IsJaVi;
+                IsJaVi = _setting.IsJavi,
+                IsAutoTranslate = _setting.IsAutoTranslate,
+                IsFaded = _setting.IsFaded,
+                IsLoadKanji = _setting.IsLoadKanji,
+                IsRunOnStartUp = _setting.IsRunOnStartUp,
+                IsDoubleClickOn = _setting.IsDoubleClickOn
+            };
             DataContext = _notify;
 
             StartHooks();
@@ -121,30 +126,15 @@ namespace JTranslator
             InitData();
             DeserializeData(HistoryFileName);
             DeserializeData(KanjiFileName);
-            HistoryListView.ItemsSource = histories;
-
-            //Loaded += Main_Loaded;
+            HistoryListView.ItemsSource = _histories;
 
             _mouseUpHandler = async (o, args) => await MouseUp(o, args);
             _mouseDownHandler = async (o, args) => await MouseDown(o, args);
             _doubleClickHandler = async (o, args) => await MouseDoubleClicked(o, args);
             SubscribeLocalEvents();
 
-            //KanjiLookup(kanjiList.Select(x => x.kanji).Take(10).ToList(), 0);
-
-            // Check run at startup
-            if (_notify.IsRunOnStartUp)
-            {
-                using var key = Registry.CurrentUser.OpenSubKey
-                ("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
-                var appName = Assembly.GetExecutingAssembly().GetName().Name;
-                if (key?.GetValueNames().Contains(appName) ?? false)
-                {
-                    //key?.SetValue(appName, "\"" + System.Environment.GetCommandLineArgs()[0] + "\"");
-                    key.SetValue(appName, System.Windows.Forms.Application.ExecutablePath);
-                }
-            }
-            //Console.WriteLine("Loaded!");
+            // Check run at startup on first launch
+            RunOnStartUp();
         }
 
         private async void CheckGitHubNewerVersion(bool forceShowMessage = false)
@@ -176,10 +166,9 @@ namespace JTranslator
                         using (var reader = new StreamReader(responseStream, Encoding.UTF8))
                         {
                             var jsonString = reader.ReadToEnd();
-                            var gits = new List<Git>();
-                            gits = JsonConvert.DeserializeObject<List<Git>>(jsonString);
+                            var gits = JsonConvert.DeserializeObject<List<Git>>(jsonString);
                             //var data = JObject.Parse(jsonString);
-                            git = gits.First();
+                            if (gits != null) git = gits.First();
                             reader.Close();
                         }
 
@@ -217,11 +206,11 @@ namespace JTranslator
                             System.Diagnostics.Process.Start(git.assets.Count > 0 ? git.assets.First().browser_download_url : git.html_url);
                         }
                     }
-                    else if (versionComparison > 0)
-                    {
-                        //This local version is greater than the release version on GitHub.
-                        //Do nothing
-                    }
+                    //else if (versionComparison > 0)
+                    //{
+                    //    //This local version is greater than the release version on GitHub.
+                    //    //Do nothing
+                    //}
                     else
                     {
                         //This local Version and the Version on GitHub are equal.
@@ -242,20 +231,38 @@ namespace JTranslator
         {
             if (this.WindowState == WindowState.Minimized || this.Visibility == Visibility.Hidden)
             {
-                this.Show();
                 this.WindowState = WindowState.Normal;
             }
-
+            this.Show();
             // According to some sources these steps gurantee that an app will be brought to foreground.
             this.Activate();
-            //this.Topmost = true;
-            //this.Topmost = false;
+            this.Topmost = false;
+            this.Topmost = true;
             this.Focus();
+        }
+
+        private void MoveToMainScreen()
+        {
+            var allScreens = Screen.AllScreens.ToList();
+            var screenOfChoice = allScreens.FirstOrDefault();
+            if (screenOfChoice != null)
+            {
+                var helper = new WindowInteropHelper(this).Handle;
+                //MoveWindow(helper, screenOfChoice.WorkingArea.Left, screenOfChoice.WorkingArea.Top, screenOfChoice.WorkingArea.Width, screenOfChoice.WorkingArea.Height, false);
+                MoveWindow(helper, (int)((screenOfChoice.WorkingArea.Width - this.Width) / 2), (int)((screenOfChoice.WorkingArea.Height - this.Width) / 2), screenOfChoice.WorkingArea.Width, screenOfChoice.WorkingArea.Height, false);
+            }
+
+            BringToForeground();
         }
 
         private void InitNotifyicon()
         {
             System.Windows.Forms.ContextMenu menu = new System.Windows.Forms.ContextMenu();
+            menu.MenuItems.Add("Move window to main screen", (s, e) =>
+            {
+                MoveToMainScreen();
+            });
+            menu.MenuItems.Add("-");
             menu.MenuItems.Add("Minimize/ Maximize", (s, e) =>
             {
                 this.Topmost = true;
@@ -280,7 +287,7 @@ namespace JTranslator
             menu.MenuItems.Add("-");
             menu.MenuItems.Add("Exit", (s, e) => { CloseButton_Click(null, null); });
             NotifyIcon notifyIcon = new NotifyIcon(); // Declaration 
-            //notifyIcon.BalloonTipText = "Hello, NotifyIcon!"; // Text of BalloonTip 
+            notifyIcon.BalloonTipText = "Hello, JTranslator!"; // Text of BalloonTip 
             notifyIcon.Text = "JTranslator"; // ToolTip of NotifyIcon 
             notifyIcon.Icon = Properties.Resources.translate;
             //notifyIcon.Icon = new Icon(Application.GetResourceStream(new Uri("/translate.ico", UriKind.Relative))?.Stream ?? throw new InvalidOperationException()); // Shown Icon 
@@ -289,8 +296,9 @@ namespace JTranslator
             notifyIcon.ContextMenu = menu;
             notifyIcon.DoubleClick += (sender, args) =>
             {
-                this.Topmost = true;
-                MinimizeButton_Click(null, null);
+                //this.Topmost = true;
+                //MinimizeButton_Click(null, null);
+                MoveToMainScreen();
             };
         }
 
@@ -301,22 +309,22 @@ namespace JTranslator
             switch (fileName)
             {
                 case KanjiFileName:
-                    kanjiList = Serializer.Deserialize<List<Result>>(file);
+                    _kanjiList = Serializer.Deserialize<List<Result>>(file);
                     file.Close();
                     break;
                 case SettingFileName:
-                    setting = Serializer.Deserialize<Setting>(file);
+                    _setting = Serializer.Deserialize<Setting>(file);
                     file.Close();
                     break;
                 case HistoryFileName:
-                    histories = Serializer.Deserialize<List<String>>(file);
+                    _histories = Serializer.Deserialize<List<String>>(file);
                     file.Close();
-                    if (histories.Count() > 200)
+                    if (_histories.Count() > 200)
                     {
-                        histories = histories.Skip(Math.Max(0, histories.Count() - 200)).ToList();
+                        _histories = _histories.Skip(Math.Max(0, _histories.Count() - 200)).ToList();
                         SerializeData(HistoryFileName);
                     }
-                    histories.Reverse();
+                    _histories.Reverse();
                     break;
                 default:
                     break;
@@ -329,13 +337,13 @@ namespace JTranslator
             switch (fileName)
             {
                 case KanjiFileName:
-                    Serializer.Serialize(file, kanjiList);
+                    Serializer.Serialize(file, _kanjiList);
                     break;
                 case SettingFileName:
-                    Serializer.Serialize(file, setting);
+                    Serializer.Serialize(file, _setting);
                     break;
                 case HistoryFileName:
-                    Serializer.Serialize(file, histories);
+                    Serializer.Serialize(file, _histories);
                     break;
                 default:
                     break;
@@ -361,10 +369,10 @@ namespace JTranslator
         private void SerializeHistoryObject(string text)
         {
             if (text.Length >= 100) return;
-            var index = histories.IndexOf(text.Trim());
-            if (index >= 0) histories.RemoveAt(index);
-            histories.Insert(0, text.Trim());
-            if (histories.Count > 100) histories.RemoveAt(100);
+            var index = _histories.IndexOf(text.Trim());
+            if (index >= 0) _histories.RemoveAt(index);
+            _histories.Insert(0, text.Trim());
+            if (_histories.Count > 100) _histories.RemoveAt(100);
             if (HistoryPopup.IsOpen) HistoryListView.Items.Refresh();
             Dispatcher?.Invoke(DispatcherPriority.Render, new Action(() =>
             {
@@ -540,12 +548,12 @@ namespace JTranslator
 
         protected override void OnClosing(CancelEventArgs e)
         {
-            setting.IsJavi = _notify.IsJaVi;
-            setting.IsAutoTranslate = _notify.IsAutoTranslate;
-            setting.IsFaded = _notify.IsFaded;
-            setting.IsLoadKanji = _notify.IsLoadKanji;
-            setting.IsRunOnStartUp = _notify.IsRunOnStartUp;
-            setting.IsDoubleClickOn = _notify.IsDoubleClickOn;
+            _setting.IsJavi = _notify.IsJaVi;
+            _setting.IsAutoTranslate = _notify.IsAutoTranslate;
+            _setting.IsFaded = _notify.IsFaded;
+            _setting.IsLoadKanji = _notify.IsLoadKanji;
+            _setting.IsRunOnStartUp = _notify.IsRunOnStartUp;
+            _setting.IsDoubleClickOn = _notify.IsDoubleClickOn;
             SerializeData(SettingFileName);
             DisposeHooks();
             UnsubscribeLocalEvents();
@@ -608,7 +616,7 @@ namespace JTranslator
 
         private void InitDate()
         {
-            foreach (var item in kanjiList.Where(item => item.date == DateTime.MinValue))
+            foreach (var item in _kanjiList.Where(item => item.date == DateTime.MinValue))
             {
                 item.date = DateTime.Now;
             }
@@ -923,7 +931,7 @@ namespace JTranslator
             var word = string.Concat(_mazii.data.Select(w => w.word));
             var onlyKanji = GetCharsInRange(word, 0x4E00, 0x9FBF).Select(c => c.ToString()).Distinct();
             // Refresh if data is older than 3 month
-            var exists = kanjiList.Where(x => onlyKanji.Contains(x.kanji) && (DateTime.Now - x.date).Days < 30 * 3).Select(k => k.kanji);
+            var exists = _kanjiList.Where(x => onlyKanji.Contains(x.kanji) && (DateTime.Now - x.date).Days < 30 * 3).Select(k => k.kanji);
             word = string.Concat(onlyKanji.Except(exists));
             var words = SplitInParts(word, 5).ToList();
 
@@ -961,12 +969,12 @@ namespace JTranslator
                         kanji = JsonConvert.DeserializeObject<MaziiKanji>(jsonString);
                         if (kanji.status == 200)
                         {
-                            var count = kanjiList.RemoveAll(k => kanji.results.Exists(e => e.kanji == k.kanji));
+                            var count = _kanjiList.RemoveAll(k => kanji.results.Exists(e => e.kanji == k.kanji));
                             foreach (var kan in kanji.results)
                             {
                                 kan.date = DateTime.Now;
                             }
-                            kanjiList.AddRange(kanji.results);
+                            _kanjiList.AddRange(kanji.results);
                             if (count > 0)
                                 SerializeData(KanjiFileName);
                             else
@@ -1010,7 +1018,7 @@ namespace JTranslator
         private void InsertCaretPosition(string word, string phonetic)
         {
             var onlyKanji = string.Concat(GetCharsInRange(word, 0x4E00, 0x9FBF).Select(c => c.ToString()));
-            var hantu = Regex.Replace(kanjiList.Aggregate(onlyKanji,
+            var hantu = Regex.Replace(_kanjiList.Aggregate(onlyKanji,
                 (current, next) => current.Replace(next.kanji, (next.mean.Length > 0 ? next.mean.Split(',')[0] : "-") + " ")).TrimEnd(),
                 @"\p{IsCJKUnifiedIdeographs}", "-");
             //Console.WriteLine(word + hantu);
@@ -1140,7 +1148,7 @@ namespace JTranslator
                         CommentRichTextBox.Document = flowDocument;
 
                         CommentPopup.IsOpen = maziiComment.result.Count > 0 && _isMouseHoverText;
-                    } 
+                    }
                     if (maziiComment.result == null || maziiComment.result.Count == 0)
                     {
                         ToastBorder.Visibility = Visibility.Visible;
@@ -1155,7 +1163,7 @@ namespace JTranslator
         private void KanjiLookup(List<string> kanChars, int index)
         {
             KanjiPopup.IsOpen = true;
-            var find = kanjiList.FirstOrDefault(x => x.kanji == kanChars[index]);
+            var find = _kanjiList.FirstOrDefault(x => x.kanji == kanChars[index]);
             var flowDocument = new FlowDocument();
             var paragraph = new Paragraph();
             paragraph.TextAlignment = TextAlignment.Center;
@@ -1295,7 +1303,7 @@ namespace JTranslator
             InvalidateMeasure();
         }
 
-        private void LanguageButton_Click(object sender, RoutedEventArgs e)
+        private void LanguageButton_Click(object? sender, RoutedEventArgs? e)
         {
             _notify.IsJaVi = !_notify.IsJaVi;
             var text = SearchTextBox.Text.Trim();
@@ -1307,7 +1315,7 @@ namespace JTranslator
             _notify.IsAutoTranslate = !_notify.IsAutoTranslate;
         }
 
-        private void OpacityButton_Click(object sender, RoutedEventArgs e)
+        private void OpacityButton_Click(object? sender, RoutedEventArgs? e)
         {
             switch (_notify.IsFaded)
             {
@@ -1325,7 +1333,7 @@ namespace JTranslator
             }
         }
 
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        private void CloseButton_Click(object? sender, RoutedEventArgs? e)
         {
             Dispatcher?.Invoke((Action)(() =>
             {
@@ -1335,7 +1343,7 @@ namespace JTranslator
 
         }
 
-        private void ClearButton_Click(object sender, RoutedEventArgs e)
+        private void ClearButton_Click(object? sender, RoutedEventArgs? e)
         {
             HideProgressBar(true);
             if (_maziiThread != null && _maziiThread.IsAlive) _maziiThread.Abort();
@@ -1357,8 +1365,9 @@ namespace JTranslator
             InitLoadKanjiReading();
         }
 
-        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+        private void MinimizeButton_Click(object? sender, RoutedEventArgs? e)
         {
+
             Logo.Visibility = Logo.Visibility == Visibility.Visible ? Visibility.Hidden : Visibility.Visible;
             _notify.IsMinimized = !_notify.IsMinimized;
 
@@ -1373,6 +1382,7 @@ namespace JTranslator
             {
                 MaziiRichTextBox.Visibility = Visibility.Collapsed;
                 GoogleRichTextBox.Visibility = Visibility.Collapsed;
+                BringToForeground();
             }
 
             HistoryPopup.IsOpen = false;
@@ -1465,7 +1475,7 @@ namespace JTranslator
             }
 
             if (index < 0) return;
-            SearchTextBox.Text = histories[index];
+            SearchTextBox.Text = _histories[index];
             HistoryPopup.IsOpen = false;
             _notify.IsOpenedHistories = HistoryPopup.IsOpen;
         }
@@ -1497,24 +1507,36 @@ namespace JTranslator
 
         private void ClearHisPopupButton_Click(object sender, RoutedEventArgs e)
         {
-            histories.Clear();
+            _histories.Clear();
             HistoryListView.Items.Refresh();
             SerializeData(KanjiFileName);
         }
 
-        private void RunOnStartUpButton_Click(object sender, RoutedEventArgs e)
+        private void RunOnStartUp()
         {
-            using RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+            using var key = Registry.CurrentUser.OpenSubKey
+                ("Software\\Microsoft\\Windows\\CurrentVersion\\Run", true);
             var appName = Assembly.GetExecutingAssembly().GetName().Name;
             if (_notify.IsRunOnStartUp)
             {
-                key?.DeleteValue(appName, false);
+                var values = key?.GetValueNames();
+                if (values != null && Array.FindIndex(values, x => x == appName) == -1)
+                {
+                    //key?.SetValue(appName, "\"" + System.Environment.GetCommandLineArgs()[0] + "\"");
+                    key?.SetValue(appName, System.Windows.Forms.Application.ExecutablePath);
+                }
             }
             else
             {
-                key?.SetValue(appName, System.Windows.Forms.Application.ExecutablePath);
+                key?.DeleteValue(appName, false);
             }
+
+        }
+
+        private void RunOnStartUpButton_Click(object sender, RoutedEventArgs e)
+        {
             _notify.IsRunOnStartUp = !_notify.IsRunOnStartUp;
+            RunOnStartUp();
         }
 
         private void DClickButton_Click(object sender, RoutedEventArgs e)

@@ -115,15 +115,18 @@
             </Style.Triggers>
         </Style>
     </Window.Style>
+    <!--<local:DpiDecorator>-->
     <Grid>
-        <Border BorderThickness="0" Width="250"
+        <Border BorderThickness="1" Width="250"
                 CornerRadius="4" Padding="10">
             <Border.Style>
                 <Style TargetType="Border">
                     <Setter Property="Background" Value="White" />
+                    <Setter Property="BorderBrush" Value="WhiteSmoke"/>
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding IsMinimized}" Value="True">
                             <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="BorderBrush" Value="Transparent"/>
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>
@@ -846,7 +849,7 @@
                         </RichTextBox.Resources>
                     </RichTextBox>
                 </Grid>
-                
+
                 <!--<ProgressBar x:Name="MaziiProgressBar" Grid.Row="3" Visibility="Collapsed" Foreground="Teal"
                          Background="{x:Null}" IsIndeterminate="True"  Margin="0,5,0,0" />-->
                 <RichTextBox Grid.Row="3" x:Name="GoogleRichTextBox" Foreground="Black" Margin="0,5,0,0" FontSize="13" MaxHeight="450"
@@ -892,9 +895,9 @@
         </Border>
         <Popup x:Name="KanjiPopup" Placement="Left" PlacementRectangle="-5,0,0,0" StaysOpen="False"
                AllowsTransparency="True" PopupAnimation="Fade" Closed="KanjiPopup_Closed">
-            <Border Visibility="Visible" BorderThickness="0"
+            <Border Visibility="Visible" BorderThickness="1"
                     CornerRadius="4" Padding="10" Width="250" VerticalAlignment="Top"
-                    Background="White">
+                    Background="White" BorderBrush="WhiteSmoke">
                 <Border.Style>
                     <Style TargetType="Border">
                         <Setter Property="Opacity" Value="0.8" />
@@ -1016,7 +1019,7 @@
         </Popup>
         <Popup x:Name="CommentPopup" Placement="Left" PlacementRectangle="-260,0,0,0" StaysOpen="True"
                AllowsTransparency="True" PopupAnimation="Fade" >
-            <Border Visibility="Visible" BorderThickness="0"
+            <Border Visibility="Visible" BorderThickness="1" BorderBrush="WhiteSmoke"
                     CornerRadius="4" Padding="10" Width="250" VerticalAlignment="Top"
                     Background="White">
                 <Border.Style>
@@ -1090,7 +1093,7 @@
                     <TextBlock Grid.Column="1" Text="Comments" FontSize="16" FontWeight="Bold"
                                    Foreground="Teal" TextWrapping="Wrap" Background="{x:Null}" Margin="5,0,0,0" VerticalAlignment="Center" />
                     <RichTextBox Grid.Row="1" x:Name="CommentRichTextBox" Foreground="Black" FontSize="13"
-                                 Background="{x:Null}" MaxHeight="450" VerticalScrollBarVisibility="Auto"
+                                 Background="{x:Null}" VerticalScrollBarVisibility="Auto"
                                  BorderBrush="{x:Null}" BorderThickness="0" Block.LineHeight="6"
                                  IsReadOnlyCaretVisible="True" IsHitTestVisible="True"
                                  IsReadOnly="True" IsDocumentEnabled="True" Margin="0,5,0,0" >
@@ -1147,7 +1150,7 @@
         </Popup>
         <Popup x:Name="HistoryPopup" Placement="Right" PlacementRectangle="255,0,0,0" StaysOpen="False"
                AllowsTransparency="True" PopupAnimation="Fade" Closed="HistoryPopup_Closed">
-            <Border Visibility="Visible" BorderThickness="0"
+            <Border Visibility="Visible" BorderThickness="1" BorderBrush="WhiteSmoke"
                     CornerRadius="4" Padding="10" Width="180" VerticalAlignment="Top"
                     Background="White">
                 <Border.Style>
@@ -1303,4 +1306,5 @@
             </Border>
         </Popup>
     </Grid>
+    <!--</local:DpiDecorator>-->
 </Window>
