@@ -305,7 +305,7 @@ namespace JTranslator
         private void DeserializeData(string fileName)
         {
             if (!File.Exists(fileName)) return;
-            using var file = File.OpenRead(fileName);
+            using var file = File.OpenRead(System.AppDomain.CurrentDomain.BaseDirectory + fileName);
             switch (fileName)
             {
                 case KanjiFileName:
@@ -333,7 +333,7 @@ namespace JTranslator
 
         private void SerializeData(string fileName)
         {
-            using var file = File.Create(fileName);
+            using var file = File.Create(System.AppDomain.CurrentDomain.BaseDirectory + fileName);
             switch (fileName)
             {
                 case KanjiFileName:
@@ -376,7 +376,7 @@ namespace JTranslator
             if (HistoryPopup.IsOpen) HistoryListView.Items.Refresh();
             Dispatcher?.Invoke(DispatcherPriority.Render, new Action(() =>
             {
-                using var file = File.Open(HistoryFileName, System.IO.FileMode.Append, FileAccess.Write);
+                using var file = File.Open(System.AppDomain.CurrentDomain.BaseDirectory + HistoryFileName, System.IO.FileMode.Append, FileAccess.Write);
                 Serializer.Serialize(file, text);
             }));
         }
@@ -385,7 +385,7 @@ namespace JTranslator
         {
             Dispatcher?.Invoke(DispatcherPriority.Render, new Action(() =>
             {
-                using var file = File.Open(KanjiFileName, System.IO.FileMode.Append, FileAccess.Write);
+                using var file = File.Open(System.AppDomain.CurrentDomain.BaseDirectory + KanjiFileName, System.IO.FileMode.Append, FileAccess.Write);
                 Serializer.Serialize(file, result);
             }));
         }
