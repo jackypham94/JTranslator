@@ -10,6 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -416,7 +417,7 @@ namespace JTranslator
             var flowDocument2 = new FlowDocument();
             var paragraph2 = new Paragraph();
             paragraph2.Inlines.Add(new Run("Cài đặt sẽ được lưu lại.") { Foreground = Brushes.Gray, FontSize = 10 });
-            paragraph2.Inlines.Add(new Run("\n(2019-2022) Developed by Jacky with ❤️")
+            paragraph2.Inlines.Add(new Run("\n(2019-2023) Developed by Jacky with ❤️")
             { Foreground = Brushes.Gray, FontSize = 10 });
             paragraph2.Inlines.Add(new Run("\nVer " + Assembly.GetExecutingAssembly().GetName().Version)
             { Foreground = Brushes.Gray, FontSize = 10 });
@@ -957,7 +958,7 @@ namespace JTranslator
                 //
                 if (!words.Any()) return;
                 _isLoadingKanji = true;
-                const string uri = "https://mazii.net/api/mazii/";
+                const string uri = "https://mazii.net/api/search";
                 foreach (var word in words)
                 {
                     //request.Method = "GET";
@@ -1015,9 +1016,10 @@ namespace JTranslator
                         responseStream.Flush();
                         responseStream.Close();
                     }
-                    catch (WebException)
+                    catch (WebException e)
                     {
                         //Do nothing
+                        Debug.WriteLine(e.Message);
                     }
                 }
             }
