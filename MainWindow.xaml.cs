@@ -730,14 +730,26 @@ namespace JTranslator
             {
                 // Initialize
                 TransProgressBar.Visibility = Visibility.Visible;
-                const string uri = "https://mazii.net/api/search/";
-                var request = (HttpWebRequest)WebRequest.Create(uri + Uri.EscapeDataString(sourceText) + "/10/1");
+                const string uri = "https://mazii.net/api/search";
+                var request = (HttpWebRequest)WebRequest.Create(uri);
                 request.KeepAlive = false;
-                request.UserAgent = USER_AGENT;
-                request.Method = "GET";
-                request.ContentLength = 0;
-                request.ContentType = "application/json";
                 request.Proxy = null;
+
+                request.Method = "POST";
+                request.ContentType = "application/json";
+                request.UserAgent = USER_AGENT;
+                using (var streamWriter = new StreamWriter(request.GetRequestStream()))
+                {
+                    var myData = new
+                    {
+                        dict = "javi",
+                        type = "word",
+                        query = sourceText,
+                        limit = 20,
+                        page = 1
+                    };
+                    streamWriter.Write(JsonConvert.SerializeObject(myData));
+                }
 
                 void Action()
                 {
