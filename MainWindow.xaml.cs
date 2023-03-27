@@ -958,12 +958,28 @@ namespace JTranslator
                 if (!words.Any()) return;
                 _isLoadingKanji = true;
                 const string uri = "https://mazii.net/api/mazii/";
-                foreach (var request in words.Select(item => (HttpWebRequest)WebRequest.Create(uri + Uri.EscapeDataString(item) + "/10")))
+                foreach (var word in words)
                 {
-                    request.Method = "GET";
-                    request.ContentLength = 0;
+                    //request.Method = "GET";
+                    //request.ContentLength = 0;
+                    //request.ContentType = "application/json";
+                    //request.UserAgent = USER_AGENT;
+                    var request = (HttpWebRequest)WebRequest.Create(uri);
+                    request.Method = "POST";
                     request.ContentType = "application/json";
                     request.UserAgent = USER_AGENT;
+                    using (var streamWriter = new StreamWriter(request.GetRequestStream()))
+                    {
+                        var myData = new
+                        {
+                            dict = "javi",
+                            type = "kanji",
+                            query = word,
+                            limit = 20,
+                            page = 1
+                        };
+                        streamWriter.Write(JsonConvert.SerializeObject(myData));
+                    }
                     var kanji = new MaziiKanji();
                     try
                     {
