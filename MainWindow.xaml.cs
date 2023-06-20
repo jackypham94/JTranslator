@@ -14,8 +14,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Security.Policy;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -88,12 +90,123 @@ namespace JTranslator
 
         private const string USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36";
 
+        private static readonly HttpClient Client = new HttpClient();
+        private const string URI_GET_MEAN = "https://api.mazii.net/api/get-mean";
+        private const string URI_GOOGLE_TRANSLATE =
+                $"https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&dt=bd&dj=1&dt=ex&dt=ld&dt=md&dt=qca&dt=rw&dt=rm&dt=ss&dt=at&sl=";
+        private const string URI_MAZII_SEARCH = "https://mazii.net/api/search";
+
+        Dictionary<string, string> japaneseTerms = new Dictionary<string, string>()
+        {
+            { "abbr", "từ viết tắt" },
+            { "adj", "tính từ" },
+            { "adj-na", "tính từ đuôi な" },
+            { "adj-no", "danh từ sở hữu cách thêm の" },
+            { "adj-pn", "tính từ đứng trước danh từ" },
+            { "adj-s", "tính từ đặc biệt" },
+            { "adj-t", "tính từ đuổi tara" },
+            { "adv", "trạng từ" },
+            { "adv-n", "danh từ làm phó từ" },
+            { "adv-to", "trạng từ thêm と" },
+            { "arch", "từ cổ" },
+            { "ateji", "ký tự thay thế" },
+            { "aux", "trợ từ" },
+            { "aux-v", "trợ động từ" },
+            { "aux-adj", "tính từ phụ trợ" },
+            { "Buddh", "thuật ngữ phật giáo" },
+            { "chn", "ngôn ngữ trẻ em" },
+            { "col", "thân mật ngữ" },
+            { "comp", "thuật ngữ tin học" },
+            { "conj", "liên từ" },
+            { "derog", "xúc phạm ngữ" },
+            { "ek", "hán tự đặc trưng" },
+            { "exp", "cụm từ" },
+            { "fam", "từ ngữ thân thuộc" },
+            { "fem", "phụ nữ hay dùng" },
+            { "food", "thuật ngữ thực phẩm" },
+            { "geom", "thuật ngữ hình học" },
+            { "gikun", "gikun" },
+            { "gram", "thuộc về ngữ pháp" },
+            { "hon", "tôn kính ngữ" },
+            { "hum", "khiêm nhường ngữ" },
+            { "id", "thành ngữ" },
+            { "int", "thán từ" },
+            { "iK", "từ chứa kanji bất quy tắc" },
+            { "ik", "từ chứa kana bất quy tắc" },
+            { "io", "okurigana bất quy tắc" },
+            { "iv", "động từ bất quy tắc" },
+            { "kyb", "giọng Kyoto" },
+            { "ksb", "giọng Kansai" },
+            { "ktb", "giọng Kantou" },
+            { "ling", "thuật ngữ ngôn ngữ học" },
+            { "MA", "thuật ngữ nghệ thuật" },
+            { "male", "tiếng lóng của nam giới" },
+            { "math", "thuật ngữ toán học" },
+            { "mil", "thuật ngữ quân sự" },
+            { "m-sl", "thuật ngữ truyện tranh" },
+            { "n", "danh từ" },
+            { "n-adv", "danh từ làm phó từ" },
+            { "n-pref", "danh từ làm tiền tố" },
+            { "n-suf", "danh từ làm hậu tố" },
+            { "n-t", "danh từ chỉ thời gian" },
+            { "neg", "thể phủ định" },
+            { "neg-v", "động từ mang nghĩa phủ định" },
+            { "ng", "từ trung tính" },
+            { "obs", "từ cổ" },
+            { "obsc", "từ tối nghĩa" },
+            { "oK", "từ chứa kanji cổ" },
+            { "ok", "từ chứa kana cổ" },
+            { "osk", "Giọng Osaka" },
+            { "physics", "thuật ngữ vật lý" },
+            { "pol", "thể lịch sự" },
+            { "pref", "tiếp đầu ngữ" },
+            { "prt", "giới từ" },
+            { "qv", "tham khảo mục khác" },
+            { "rare", "từ hiếm gặp" },
+            { "sl", "tiếng lóng" },
+            { "suf", "hậu tố" },
+            { "tsb", "giọng Tosa" },
+            { "uK", "từ sử dụng kanji đứng một mình" },
+            { "uk", "từ sử dụng kana đứng một mình" },
+            { "v", "động từ" },
+            { "v1", "động từ nhóm 2" },
+            { "v5", "động từ nhóm 1" },
+            { "v5aru", "động từ nhóm 1 -aru" },
+            { "v5b", "động từ nhóm 1 -bu" },
+            { "v5g", "động từ nhóm 1 -ku" },
+            { "v5k", "động từ nhóm 1 -ku" },
+            { "v5k-s", "động từ nhóm 1 -iku/yuku" },
+            { "v5m", "động từ nhóm 1 -mu" },
+            { "v5n", "động từ nhóm 1 -nu" },
+            { "v5r", "Động từ nhóm 1 -ru" },
+            { "v5r-i", "Động từ nhóm 1 bất quy tắc -ru" },
+            { "v5s", "động từ nhóm 1 -su" },
+            { "v5t", "động từ nhóm 1 -tsu" },
+            { "v5u", "động từ nhóm 1 -u" },
+            { "v5u-s", "động từ nhóm 1 -u (đặc biệt)" },
+            { "v5uru", "động từ nhóm 1 -uru" },
+            { "vi", "tự động từ" },
+            { "vk", "động từ kuru (đặc biệt)" },
+            { "vs", "danh từ hoặc giới từ làm trợ từ cho động từ suru" },
+            { "vs-i", "động từ bất quy tắc -suru" },
+            { "vt", "tha động từ" },
+            { "vulg", "thuật ngữ thô tục" },
+            { "vz", "tha động từ" },
+            { "X", "thuật ngữ thô tục" }
+        };
+
         public MainWindow()
         {
             InitializeComponent();
+
+            Client.DefaultRequestHeaders.Add("User-Agent", USER_AGENT);
+
+            //ServicePointManager.DefaultConnectionLimit = 100;
+            //ServicePointManager.MaxServicePointIdleTime = 2000;
+            //ServicePointManager.UseNagleAlgorithm = false;
+            //ServicePointManager.Expect100Continue = false;
+
             System.Windows.Forms.Application.EnableVisualStyles();
-            ServicePointManager.UseNagleAlgorithm = false;
-            ServicePointManager.Expect100Continue = false;
             CheckGitHubNewerVersion();
 
             InitNotifyicon();
@@ -136,47 +249,28 @@ namespace JTranslator
 
             // Check run at startup on first launch
             RunOnStartUp();
+
         }
 
         private async void CheckGitHubNewerVersion(bool forceShowMessage = false)
         {
             //Get all releases from GitHub
-            const string uri = "https://api.github.com/repos/jackypham94/JTranslator/releases";
-            var request = (HttpWebRequest)WebRequest.Create(uri);
-            request.KeepAlive = false;
-            request.Method = "GET";
-            request.ContentLength = 0;
-            request.ContentType = "application/json";
-            request.UserAgent = USER_AGENT;
-            request.Proxy = null;
+            const string uri_git_hub = "https://api.github.com/repos/jackypham94/JTranslator/releases";
             var git = new Git();
             void Action()
             {
                 try
                 {
-                    using var response = (HttpWebResponse)request.GetResponse();
+                    var response = Client.GetAsync(uri_git_hub).Result;
                     if (response.StatusCode != HttpStatusCode.OK)
                     {
                         var message = $"Request failed. Received HTTP {response.StatusCode}";
                         throw new ApplicationException(message);
                     }
-
-                    using (var responseStream = response.GetResponseStream())
-                    {
-                        if (responseStream == null) return;
-                        using (var reader = new StreamReader(responseStream, Encoding.UTF8))
-                        {
-                            var jsonString = reader.ReadToEnd();
-                            var gits = JsonConvert.DeserializeObject<List<Git>>(jsonString);
-                            //var data = JObject.Parse(jsonString);
-                            if (gits != null) git = gits.First();
-                            reader.Close();
-                        }
-
-                        responseStream.Flush();
-                        responseStream.Close();
-                    }
-                    response.Close();
+                    string responseBody = response.Content.ReadAsStringAsync().Result;
+                    if (string.IsNullOrEmpty(responseBody)) return;
+                    var gits = JsonConvert.DeserializeObject<List<Git>>(responseBody);
+                    if (gits != null) git = gits.First();
                 }
                 catch (WebException)
                 {
@@ -204,7 +298,7 @@ namespace JTranslator
                             $"{git.body}", @"JTranslator", MessageBoxButtons.YesNo);
                         if (result == System.Windows.Forms.DialogResult.Yes)
                         {
-                            System.Diagnostics.Process.Start(git.assets.Count > 0 ? git.assets.First().browser_download_url : git.html_url);
+                            Process.Start(git.assets.Count > 0 ? git.assets.First().browser_download_url : git.html_url);
                         }
                     }
                     //else if (versionComparison > 0)
@@ -306,7 +400,7 @@ namespace JTranslator
         private void DeserializeData(string fileName)
         {
             if (!File.Exists(fileName)) return;
-            using var file = File.OpenRead(System.AppDomain.CurrentDomain.BaseDirectory + fileName);
+            using var file = File.OpenRead(AppDomain.CurrentDomain.BaseDirectory + fileName);
             switch (fileName)
             {
                 case KanjiFileName:
@@ -334,7 +428,7 @@ namespace JTranslator
 
         private void SerializeData(string fileName)
         {
-            using var file = File.Create(System.AppDomain.CurrentDomain.BaseDirectory + fileName);
+            using var file = File.Create(AppDomain.CurrentDomain.BaseDirectory + fileName);
             switch (fileName)
             {
                 case KanjiFileName:
@@ -377,7 +471,7 @@ namespace JTranslator
             if (HistoryPopup.IsOpen) HistoryListView.Items.Refresh();
             Dispatcher?.Invoke(DispatcherPriority.Render, new Action(() =>
             {
-                using var file = File.Open(System.AppDomain.CurrentDomain.BaseDirectory + HistoryFileName, System.IO.FileMode.Append, FileAccess.Write);
+                using var file = File.Open(AppDomain.CurrentDomain.BaseDirectory + HistoryFileName, FileMode.Append, FileAccess.Write);
                 Serializer.Serialize(file, text);
             }));
         }
@@ -386,7 +480,7 @@ namespace JTranslator
         {
             Dispatcher?.Invoke(DispatcherPriority.Render, new Action(() =>
             {
-                using var file = File.Open(System.AppDomain.CurrentDomain.BaseDirectory + KanjiFileName, System.IO.FileMode.Append, FileAccess.Write);
+                using var file = File.Open(AppDomain.CurrentDomain.BaseDirectory + KanjiFileName, FileMode.Append, FileAccess.Write);
                 Serializer.Serialize(file, result);
             }));
         }
@@ -473,7 +567,7 @@ namespace JTranslator
             {
                 if (_cancellationTokenSource.Token.IsCancellationRequested)
                     return;
-                Thread.Sleep(200);
+                Thread.Sleep(100);
                 SendKeys.SendWait("^c");
                 SendKeys.Flush();
             });
@@ -630,44 +724,23 @@ namespace JTranslator
             // Initialize
             TransProgressBar.Visibility = Visibility.Visible;
             //https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&dt=bd&dj=1&dt=ex&dt=ld&dt=md&dt=qca&dt=rw&dt=rm&dt=ss&dt=at&sl=ja&tl=vi&q=
-            var uri =
-                $"https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&dt=bd&dj=1&dt=ex&dt=ld&dt=md&dt=qca&dt=rw&dt=rm&dt=ss&dt=at&sl={@from}&tl={to}&q=";
-            var request = (HttpWebRequest)WebRequest.Create(uri + Uri.EscapeDataString(sourceText));
-            request.KeepAlive = false;
-            request.UserAgent = USER_AGENT;
-            request.Method = "GET";
-            request.ContentLength = 0;
-            request.ContentType = "application/json";
-            request.Proxy = null;
-
             void Action()
             {
                 try
                 {
                     _googleThread = Thread.CurrentThread;
-                    using var response = (HttpWebResponse)request.GetResponse();
+                    var response = Client.GetAsync(URI_GOOGLE_TRANSLATE + $"{@from}&tl={to}&q=" + Uri.EscapeDataString(sourceText)).Result;
                     if (response.StatusCode != HttpStatusCode.OK)
                     {
                         var message = $"Request failed. Received HTTP {response.StatusCode}";
                         throw new ApplicationException(message);
                     }
-
-                    using (var responseStream = response.GetResponseStream())
-                    {
-                        if (responseStream == null) return;
-                        using (var reader = new StreamReader(responseStream, Encoding.UTF8))
-                        {
-                            var jsonString = reader.ReadToEnd();
-                            jsonString = jsonString.Replace(@"\r", "");
-                            jsonString = jsonString.Replace(@"\n", "");
-                            _google = new Google();
-                            _google = JsonConvert.DeserializeObject<Google>(jsonString);
-                        }
-
-                        responseStream.Flush();
-                        responseStream.Close();
-                    }
-                    response.Dispose();
+                    string responseBody = response.Content.ReadAsStringAsync().Result;
+                    if (string.IsNullOrEmpty(responseBody)) return;
+                    responseBody = responseBody.Replace(@"\r", "");
+                    responseBody = responseBody.Replace(@"\n", "");
+                    _google = new Google();
+                    _google = JsonConvert.DeserializeObject<Google>(responseBody);
                 }
                 catch (WebException)
                 {
@@ -731,53 +804,31 @@ namespace JTranslator
             {
                 // Initialize
                 TransProgressBar.Visibility = Visibility.Visible;
-                const string uri = "https://mazii.net/api/search";
-                var request = (HttpWebRequest)WebRequest.Create(uri);
-                request.KeepAlive = false;
-                request.Proxy = null;
-
-                request.Method = "POST";
-                request.ContentType = "application/json";
-                request.UserAgent = USER_AGENT;
-                using (var streamWriter = new StreamWriter(request.GetRequestStream()))
+                var myData = new
                 {
-                    var myData = new
-                    {
-                        dict = "javi",
-                        type = "word",
-                        query = sourceText,
-                        limit = 20,
-                        page = 1
-                    };
-                    streamWriter.Write(JsonConvert.SerializeObject(myData));
-                }
-
+                    dict = "javi",
+                    type = "word",
+                    query = sourceText,
+                    limit = 20,
+                    page = 1
+                };
+                var dataJson = JsonConvert.SerializeObject(myData);
+                var content = new StringContent(dataJson, Encoding.UTF8, "application/json");
                 void Action()
                 {
                     try
                     {
                         _maziiThread = Thread.CurrentThread;
-                        using var response = (HttpWebResponse)request.GetResponse();
+                        var response = Client.PostAsync(URI_MAZII_SEARCH, content).Result;
                         if (response.StatusCode != HttpStatusCode.OK)
                         {
                             var message = $"Request failed. Received HTTP {response.StatusCode}";
                             throw new ApplicationException(message);
                         }
-
-                        using (var responseStream = response.GetResponseStream())
-                        {
-                            if (responseStream == null) return;
-                            using (var reader = new StreamReader(responseStream, Encoding.UTF8))
-                            {
-                                var jsonString = reader.ReadToEnd();
-                                _mazii = new Mazii();
-                                _mazii = JsonConvert.DeserializeObject<Mazii>(jsonString);
-                            }
-
-                            responseStream.Flush();
-                            responseStream.Close();
-                        }
-                        response.Dispose();
+                        string responseBody = response.Content.ReadAsStringAsync().Result;
+                        if (string.IsNullOrEmpty(responseBody)) return;
+                        _mazii = new Mazii();
+                        _mazii = JsonConvert.DeserializeObject<Mazii>(responseBody);
                     }
                     catch (WebException)
                     {
@@ -795,7 +846,7 @@ namespace JTranslator
                     var paragraph = new Paragraph();
                     //paragraph.Inlines.Add(new Run(sourceText) {Foreground = Brushes.DarkCyan});
                     paragraph.Inlines.Add(new Run("From Mazii") { Foreground = Brushes.Gray, FontSize = 10 });
-                    if (_mazii?.data != null)
+                    if (_mazii?.data != null && _mazii?.data.Count > 0)
                     {
                         _mazii.data = _mazii.data.Take(5).ToList();
                         foreach (var item in _mazii.data)
@@ -861,9 +912,18 @@ namespace JTranslator
                             foreach (var mean in item.means)
                             {
                                 paragraph.Inlines.Add(new Run("\n• "));
+                                string kind = "";
                                 if (!String.IsNullOrEmpty(mean.kind))
-                                    paragraph.Inlines.Add(new Run(" (" + mean.kind + ") ") { Foreground = Brushes.Teal });
-                                paragraph.Inlines.Add(new Run(mean.mean + ""));
+                                {
+                                    kind = string.Join(", ", mean.kind.Split(',').Select(term => japaneseTerms.ContainsKey(term.Trim()) ? japaneseTerms[term.Trim()] : term.Trim()));
+                                    paragraph.Inlines.Add(new Run(" (" + mean.kind + ") ")
+                                    {
+                                        Foreground = Brushes.Teal,
+                                        ToolTip = !string.IsNullOrEmpty(mean.kind) ? kind : null
+                                    });
+                                }
+                                    
+                                paragraph.Inlines.Add(new Run(mean.mean + "") { ToolTip = !string.IsNullOrEmpty(mean.kind) ? kind : null });
                             }
                             //var cmtLink = new Hyperlink(new Run("\ncomments")
                             //{
@@ -958,45 +1018,36 @@ namespace JTranslator
                 //
                 if (!words.Any()) return;
                 _isLoadingKanji = true;
-                const string uri = "https://mazii.net/api/search";
                 foreach (var word in words)
                 {
                     //request.Method = "GET";
                     //request.ContentLength = 0;
                     //request.ContentType = "application/json";
                     //request.UserAgent = USER_AGENT;
-                    var request = (HttpWebRequest)WebRequest.Create(uri);
-                    request.Method = "POST";
-                    request.ContentType = "application/json";
-                    request.UserAgent = USER_AGENT;
-                    using (var streamWriter = new StreamWriter(request.GetRequestStream()))
+                    var myData = new
                     {
-                        var myData = new
-                        {
-                            dict = "javi",
-                            type = "kanji",
-                            query = word,
-                            limit = 20,
-                            page = 1
-                        };
-                        streamWriter.Write(JsonConvert.SerializeObject(myData));
-                    }
-                    var kanji = new MaziiKanji();
+                        dict = "javi",
+                        type = "kanji",
+                        query = word,
+                        limit = 20,
+                        page = 1
+                    };
+                    var dataJson = JsonConvert.SerializeObject(myData);
+                    var content = new StringContent(dataJson, Encoding.UTF8, "application/json");
+
                     try
                     {
-                        var response = (HttpWebResponse)request.GetResponse();
+                        var response = Client.PostAsync(URI_MAZII_SEARCH, content).Result;
                         if (response.StatusCode != HttpStatusCode.OK)
                         {
                             var message = $"Request failed. Received HTTP {response.StatusCode}";
                             throw new ApplicationException(message);
                         }
-
-                        var responseStream = response.GetResponseStream();
-                        if (responseStream == null) return;
-                        using var reader = new StreamReader(responseStream);
-                        var jsonString = reader.ReadToEnd();
-                        kanji = JsonConvert.DeserializeObject<MaziiKanji>(jsonString);
-                        if (kanji.status == 200)
+                        string responseBody = response.Content.ReadAsStringAsync().Result;
+                        if (string.IsNullOrEmpty(responseBody)) return;
+                        var kanji = new MaziiKanji();
+                        kanji = JsonConvert.DeserializeObject<MaziiKanji>(responseBody);
+                        if (kanji != null && kanji.status == 200)
                         {
                             var count = _kanjiList.RemoveAll(k => kanji.results.Exists(e => e.kanji == k.kanji));
                             foreach (var kan in kanji.results)
@@ -1013,8 +1064,6 @@ namespace JTranslator
                         {
                             //Console.WriteLine(@"Error: " + string.Concat(str2));
                         }
-                        responseStream.Flush();
-                        responseStream.Close();
                     }
                     catch (WebException e)
                     {
@@ -1103,50 +1152,38 @@ namespace JTranslator
                 {
                     if (maziiComment == null)
                     {
+
                         maziiComment = new();
-                        const string uri = "https://api.mazii.net/api/get-mean";
-                        var request = (HttpWebRequest)WebRequest.Create(uri);
-                        request.Method = "POST";
-                        request.ContentType = "application/json";
-                        request.UserAgent = USER_AGENT;
-                        using (var streamWriter = new StreamWriter(request.GetRequestStream()))
+                        var myData = new
                         {
-                            var myData = new
-                            {
-                                wordId = wordId,
-                                type = "word",
-                                dict = "javi"
-                            };
-                            streamWriter.Write(JsonConvert.SerializeObject(myData));
-                        }
+                            wordId,
+                            type = "word",
+                            dict = "javi"
+                        };
+                        var dataJson = JsonConvert.SerializeObject(myData);
+                        var content = new StringContent(dataJson, Encoding.UTF8, "application/json");
                         try
                         {
-                            var response = (HttpWebResponse)request.GetResponse();
+                            var response = Client.PostAsync(URI_GET_MEAN, content).Result;
                             if (response.StatusCode != HttpStatusCode.OK)
                             {
                                 var message = $"Request failed. Received HTTP {response.StatusCode}";
                                 throw new ApplicationException(message);
                             }
-                            using (var responseStream = response.GetResponseStream())
-                            {
-                                if (responseStream == null) return;
-                                using (var reader = new StreamReader(responseStream, Encoding.UTF8))
-                                {
-                                    var jsonString = reader.ReadToEnd();
-                                    maziiComment = new MaziiComment();
-                                    maziiComment = JsonConvert.DeserializeObject<MaziiComment>(jsonString);
-                                    maziiComment.wordId = wordId;
-                                    _maziiComments.Add(maziiComment);
-                                    if (_maziiComments.Count > 10)
-                                    {
-                                        _maziiComments = _maziiComments.Skip(Math.Max(0, _maziiComments.Count() - 10)).ToList();
-                                    }
-                                }
+                            string responseBody = response.Content.ReadAsStringAsync().Result;
 
-                                responseStream.Flush();
-                                responseStream.Close();
+                            if (string.IsNullOrEmpty(responseBody)) return;
+                            maziiComment = new MaziiComment();
+                            maziiComment = JsonConvert.DeserializeObject<MaziiComment>(responseBody);
+                            if (maziiComment != null)
+                            {
+                                maziiComment.wordId = wordId;
+                                _maziiComments.Add(maziiComment);
+                                if (_maziiComments.Count > 10)
+                                {
+                                    _maziiComments = _maziiComments.Skip(Math.Max(0, _maziiComments.Count() - 10)).ToList();
+                                }
                             }
-                            response.Dispose();
                         }
                         catch (WebException)
                         {
